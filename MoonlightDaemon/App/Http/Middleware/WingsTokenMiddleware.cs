@@ -5,14 +5,14 @@ namespace MoonlightDaemon.App.Http.Middleware;
 public class WingsTokenMiddleware
 {
     private readonly RequestDelegate Next;
-    private readonly WingsTokenService WingsTokenService;
+    private readonly WingsConfigService WingsConfigService;
 
     public WingsTokenMiddleware(
         RequestDelegate next,
-        WingsTokenService wingsTokenService)
+        WingsConfigService wingsConfigService)
     {
         Next = next;
-        WingsTokenService = wingsTokenService;
+        WingsConfigService = wingsConfigService;
     }
     
     public async Task InvokeAsync(HttpContext context)
@@ -21,7 +21,7 @@ public class WingsTokenMiddleware
         {
             var token = context.Request.Headers["Authorization"];
 
-            if (token == WingsTokenService.Token)
+            if (token == WingsConfigService.Token)
             {
                 await Next(context);
                 return;

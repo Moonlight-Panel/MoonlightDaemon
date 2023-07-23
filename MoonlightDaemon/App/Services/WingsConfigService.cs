@@ -1,11 +1,12 @@
 ﻿namespace MoonlightDaemon.App.Services;
 
-public class WingsTokenService
+public class WingsConfigService
 {
     public readonly string Token;
     public readonly string Id;
+    public readonly string Remote;
 
-    public WingsTokenService()
+    public WingsConfigService()
     {
         var lines = File.ReadAllLines("/etc/pterodactyl/config.yml");
         
@@ -14,5 +15,8 @@ public class WingsTokenService
         
         line = lines.First(x => x.StartsWith("token_id: "));
         Id = line.Replace("token_id: ", "");
+        
+        line = lines.First(x => x.StartsWith("remote: "));
+        Remote = line.Replace("remote: ", "");
     }
 }
