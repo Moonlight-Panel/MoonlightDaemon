@@ -48,11 +48,6 @@ public class DockerMetricsService
             try
             {
                 var usedMem = raw.MemUsage.Split("/")[0].Trim();
-                var usedMemS = usedMem
-                    .Replace("KiB", "")
-                    .Replace("GiB", "")
-                    .Replace("MiB", "");
-                var usedMemD = (long)float.Parse(usedMemS);
 
                 var multiplicator = 1;
 
@@ -70,6 +65,12 @@ public class DockerMetricsService
                 {
                     multiplicator = 1024 * 1024 * 1024;
                 }
+                
+                var usedMemS = usedMem
+                    .Replace("KiB", "")
+                    .Replace("GiB", "")
+                    .Replace("MiB", "");
+                var usedMemD = (long)float.Parse(usedMemS);
 
                 stats.Memory = usedMemD * multiplicator;
             }
@@ -93,11 +94,6 @@ public class DockerMetricsService
             try
             {
                 var usedIn = raw.NetIo.Split("/")[0].Trim();
-                var usedInS = usedIn
-                    .Replace("kB", "")
-                    .Replace("MB", "")
-                    .Replace("GB", "");
-                var usedInD = (long)float.Parse(usedInS);
 
                 var multiplicator = 1;
 
@@ -115,6 +111,12 @@ public class DockerMetricsService
                 {
                     multiplicator = 1024 * 1024 * 1024;
                 }
+                
+                var usedInS = usedIn
+                    .Replace("kB", "")
+                    .Replace("MB", "")
+                    .Replace("GB", "");
+                var usedInD = (long)float.Parse(usedInS);
 
                 stats.NetworkIn = usedInD * multiplicator;
             }
@@ -127,11 +129,6 @@ public class DockerMetricsService
             try
             {
                 var usedIn = raw.NetIo.Split("/")[1].Trim();
-                var usedInS = usedIn
-                    .Replace("kB", "")
-                    .Replace("MB", "")
-                    .Replace("GB", "");
-                var usedInD = (long)float.Parse(usedInS);
 
                 var multiplicator = 1;
 
@@ -149,6 +146,12 @@ public class DockerMetricsService
                 {
                     multiplicator = 1024 * 1024 * 1024;
                 }
+                
+                var usedInS = usedIn
+                    .Replace("kB", "")
+                    .Replace("MB", "")
+                    .Replace("GB", "");
+                var usedInD = (long)float.Parse(usedInS);
 
                 stats.NetworkOut = usedInD * multiplicator;
             }

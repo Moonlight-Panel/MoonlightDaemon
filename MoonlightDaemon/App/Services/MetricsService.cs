@@ -27,7 +27,7 @@ public class MetricsService
 
     public async Task<long> GetUsedMemory()
     {
-        return long.Parse(
+        return await GetTotalMemory() - long.Parse(
             await BashHelper
                 .ExecuteCommand("grep 'MemFree:' /proc/meminfo | awk '{print $2}'")
         );
