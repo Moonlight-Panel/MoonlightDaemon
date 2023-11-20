@@ -3,13 +3,13 @@ using MoonlightDaemon.App.Exceptions;
 
 namespace MoonlightDaemon.App.Helpers;
 
-public class BashHelper
+public class ShellHelper
 {
     public async Task<string> ExecuteCommand(string command, bool ignoreErrors = false)
     {
         Process process = new Process();
         
-        process.StartInfo.FileName = "/bin/bash";
+        process.StartInfo.FileName = "/bin/sh";
         process.StartInfo.Arguments = $"-c \"{command.Replace("\"", "\\\"")}\"";
         process.StartInfo.UseShellExecute = false;
         process.StartInfo.RedirectStandardOutput = true;
@@ -23,7 +23,7 @@ public class BashHelper
         if (process.ExitCode != 0)
         {
             if(!ignoreErrors)
-                throw new BashException(await process.StandardError.ReadToEndAsync());
+                throw new ShellException(await process.StandardError.ReadToEndAsync());
         }
 
         return output;
