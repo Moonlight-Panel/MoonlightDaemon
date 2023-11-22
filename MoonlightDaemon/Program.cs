@@ -56,16 +56,52 @@ builder.Services.AddSingleton<DockerService>();
 builder.Services.AddSingleton<ServerStartService>();
 
 // Services / Monitors
-builder.Services.AddHostedService<ContainerMonitorService>();
+builder.Services.AddSingleton<ContainerMonitorService>();
 
 var app = builder.Build();
 
+// Autostart services
 var moonlightService = app.Services.GetRequiredService<MoonlightService>();
 await moonlightService.Initialize();
+
+var containerMonitorService = app.Services.GetRequiredService<ContainerMonitorService>();
+await containerMonitorService.Start();
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
 Logger.Info("Starting http server");
+
+Task.Run(async () => {
+    var server = new Server();
+    server.Id = 1;
+    
+    server.Image = new()
+    {
+        DockerImage = "moonlightpanel/images:minecraft17"
+    };
+
+    server.Allocations = new()
+    {
+        new()
+        {
+            Port = 25565
+        }
+    };
+
+    server.Limits = new()
+    {
+        Cpu = 100,
+        DisableSwap = false,
+        EnableOomKill = false,
+        Memory = 4096,
+        Pids = 100,
+        Storage = 10240
+    };
+
+    var serverService = app.Services.GetRequiredService<ServerService>();
+    await serverService.SetServerState(server, ServerState.Starting);
+});
+
 app.Run();

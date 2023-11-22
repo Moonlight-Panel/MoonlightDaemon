@@ -38,8 +38,11 @@ public class ServerStartService
         Logger.Debug($"Pulling docker image: {server.Image.DockerImage}");
         await DockerService.PullDockerImage(server.Image.DockerImage, msg =>
         {
-            var percent = Math.Round(msg.Progress.Current / msg.Progress.Total * 100D);
-            Logger.Debug($"[ {percent}% ] {msg.Status}");
+            if(msg != null && msg.Progress != null && msg.Progress.Total != 0)
+            {
+                var percent = Math.Round((float)msg.Progress.Current / msg.Progress.Total * 100);
+                Logger.Debug($"[ {percent}% ] {msg.Status}");
+            }
         });
 
 
