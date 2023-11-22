@@ -13,6 +13,7 @@ public class ServerService
     private readonly ContainerMonitorService ContainerMonitorService;
 
     private readonly Dictionary<int, StateMachine<ServerState>> StateMachines = new();
+    private readonly Dictionary<int, Server> ServerCache = new();
 
     public ServerService(IServiceScopeFactory serviceScopeFactory, ContainerMonitorService containerMonitorService)
     {
@@ -27,7 +28,7 @@ public class ServerService
                 {
                     if (data.Action == "die")
                     {
-                        var stateMachine = await GetStateMachineById(data.Id);
+                        var stateMachine = await GetStateMachine(data.Id);
 
                         if(stateMachine == null)
                             return;
@@ -48,15 +49,15 @@ public class ServerService
         };
     }
 
-    public async Task SetServerState(Server server, ServerState serverState)
+    public async Task SetServerState(int id, ServerState serverState)
     {
-        var stateMachine = await EnsureStateMachine(server);
+        var stateMachine = await EnsureStateMachine(id);
         await stateMachine.TransitionTo(serverState);
     }
 
-    public async Task<ServerState> GetServerState(Server server)
+    public async Task<ServerState> GetServerState(int id)
     {
-        var stateMachine = await GetStateMachine(server);
+        var stateMachine = await GetStateMachine(id);
 
         if (stateMachine == null)
             return ServerState.Offline;
@@ -64,10 +65,44 @@ public class ServerService
         return stateMachine.State;
     }
 
-    // Utils
-    private async Task<StateMachine<ServerState>> EnsureStateMachine(Server server)
+    #region Cache
+
+    public Task<Server?> LoadServerFromCacheUnsafe(int id)
     {
-        var stateMachine = await GetStateMachine(server);
+        lock (ServerCache)
+        {
+            if (!ServerCache.ContainsKey(id))
+                return Task.FromResult<Server?>(null);
+
+            return Task.FromResult<Server?>(ServerCache[id]);
+        }
+    }
+    
+    public async Task<Server> LoadServerFromCache(int id)
+    {
+        var result = await LoadServerFromCacheUnsafe(id);
+
+        if (result == null) //TODO: add default enabled option to request server from the panel
+            throw new ArgumentException("The requested server was not found in the cache");
+
+        return result;
+    }
+    
+    public Task StoreServerInCache(Server server)
+    {
+        lock (ServerCache)
+        {
+            ServerCache[server.Id] = server;
+        }
+        
+        return Task.CompletedTask;
+    }
+
+    #endregion
+    
+    private async Task<StateMachine<ServerState>> EnsureStateMachine(int id)
+    {
+        var stateMachine = await GetStateMachine(id);
 
         if (stateMachine != null)
             return stateMachine;
@@ -82,6 +117,7 @@ public class ServerService
         {
             var scope = ServiceScopeFactory.CreateScope();
             var service = scope.ServiceProvider.GetRequiredService<ServerStartService>();
+            var server = await LoadServerFromCache(id);
             await service.Perform(server);
         });
 
@@ -89,15 +125,29 @@ public class ServerService
         await stateMachine.AddTransition(ServerState.Running, ServerState.Offline);
         await stateMachine.AddTransition(ServerState.Starting, ServerState.Offline);
 
+        await stateMachine.AddTransition(ServerState.Offline, ServerState.Installing, async () =>
+        {
+            var scope = ServiceScopeFactory.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<ServerInstallService>();
+            var server = await LoadServerFromCache(id);
+            await service.Perform(server);
+        });
+        
+        await stateMachine.AddTransition(ServerState.Installing, ServerState.Offline, async () =>
+        {
+            var scope = ServiceScopeFactory.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<ServerInstallService>();
+            var server = await LoadServerFromCache(id);
+            await service.Complete(server);
+        });
+
         lock (StateMachines)
-            StateMachines.Add(server.Id, stateMachine);
+            StateMachines.Add(id, stateMachine);
 
         return stateMachine;
     }
 
-    private Task<StateMachine<ServerState>?> GetStateMachine(Server server) => GetStateMachineById(server.Id);
-
-    private Task<StateMachine<ServerState>?> GetStateMachineById(int id)
+    private Task<StateMachine<ServerState>?> GetStateMachine(int id)
     {
         StateMachine<ServerState>? stateMachine = null;
 

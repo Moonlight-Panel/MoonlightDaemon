@@ -21,7 +21,7 @@ logConfig = logConfig.Enrich.FromLogContext()
         outputTemplate:
         "{Timestamp:HH:mm:ss} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}");
 
-if (builder.Environment.IsDevelopment())
+if (builder.Environment.IsDevelopment() || args.Contains("--debug"))
     logConfig = logConfig.MinimumLevel.Debug();
 else
     logConfig = logConfig.MinimumLevel.Information();
@@ -37,7 +37,7 @@ var config =
 builder.Logging.AddConfiguration(config.Build());
 
 //
-Logger.Info("Starting MoonlightDaemon");
+Logger.Info("Starting MoonlightDaemon v2");
 
 // Configure kestrel
 builder.Services.AddControllers();
@@ -74,34 +74,46 @@ app.MapControllers();
 Logger.Info("Starting http server");
 
 Task.Run(async () => {
-    var server = new Server();
-    server.Id = 1;
-    
-    server.Image = new()
+    try
     {
-        DockerImage = "moonlightpanel/images:minecraft17"
-    };
+        var server = new Server();
+        server.Id = 1;
 
-    server.Allocations = new()
-    {
-        new()
+        server.Image = new()
         {
-            Port = 25565
-        }
-    };
+            DockerImage = "moonlightpanel/images:minecraft17"
+        };
 
-    server.Limits = new()
+        server.Allocations = new()
+        {
+            new()
+            {
+                Port = 25565
+            }
+        };
+
+        server.Limits = new()
+        {
+            Cpu = 100,
+            DisableSwap = false,
+            EnableOomKill = false,
+            Memory = 4096,
+            Pids = 100,
+            Storage = 10240
+        };
+        
+        var serverService = app.Services.GetRequiredService<ServerService>();
+        
+        // Store server to cache in order to use it
+        await serverService.StoreServerInCache(server);
+        
+        await serverService.SetServerState(server.Id, ServerState.Starting);
+    }
+    catch (Exception e)
     {
-        Cpu = 100,
-        DisableSwap = false,
-        EnableOomKill = false,
-        Memory = 4096,
-        Pids = 100,
-        Storage = 10240
-    };
-
-    var serverService = app.Services.GetRequiredService<ServerService>();
-    await serverService.SetServerState(server, ServerState.Starting);
+        Console.WriteLine(e);
+        throw;
+    }
 });
 
 app.Run();

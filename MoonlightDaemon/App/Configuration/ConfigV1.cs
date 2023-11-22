@@ -11,6 +11,7 @@ public class ConfigV1
     {
         public string LogPath { get; set; } = "/var/log/moonlight";
         public string VolumePath { get; set; } = "/var/lib/moonlight/volumes";
+        public string InstallPath { get; set; } = "/var/lib/moonlight/install";
     }
     
     public class DockerData
