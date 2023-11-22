@@ -1,4 +1,4 @@
-﻿using MoonlightDaemon.App.Helpers.StateMachines;
+﻿using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services.Servers;
@@ -48,6 +48,8 @@ public class ServerService
             var service = scope.ServiceProvider.GetRequiredService<ServerStartService>();
             await service.Perform(server);
         });
+
+        await stateMachine.AddTransition(ServerState.Starting, ServerState.Running);
 
         lock (StateMachines)
             StateMachines.Add(server.Id, stateMachine);

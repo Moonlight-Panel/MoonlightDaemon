@@ -1,4 +1,4 @@
-﻿namespace MoonlightDaemon.App.Helpers.StateMachines;
+﻿namespace MoonlightDaemon.App.Exceptions;
 
 public class IllegalStateException : Exception
 {

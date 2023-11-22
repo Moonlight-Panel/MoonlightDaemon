@@ -38,8 +38,15 @@ public class DockerService
 
     public async Task<bool> IsContainerRunning(string name)
     {
-        var result = await Client.Containers.InspectContainerAsync(name);
-        return result.State.Running;
+        try
+        {
+            var result = await Client.Containers.InspectContainerAsync(name);
+            return result.State.Running;
+        }
+        catch (DockerContainerNotFoundException)
+        {
+            return false;
+        }
     }
 
     public async Task RemoveContainer(string name)
@@ -52,7 +59,7 @@ public class DockerService
         });
     }
 
-    public async Task PullDockerImage(string image)
+    public async Task PullDockerImage(string image, Action<JSONMessage>? onProgress = null)
     {
         var parts = image.Split(":");
 
@@ -74,133 +81,20 @@ public class DockerService
                 FromImage = name,
                 Tag = tag
             }, new AuthConfig(),
-            new Progress<JSONMessage>((msg) => { Logger.Debug("Pull output: " + msg.Status); }));
+            new Progress<JSONMessage>(message =>
+            {
+                if(onProgress != null)
+                    onProgress.Invoke(message);
+            }));
     }
 
-    public async Task CreateRuntimeContainer(string name, string image, List<int> ports, int cpu, int memory,
-        int pidsLimit, Dictionary<string, string> mounts)
+    public async Task CreateContainer(CreateContainerParameters parameters)
     {
-        var config = ConfigService.Get();
-        var hostConfig = new HostConfig();
+        await Client.Containers.CreateContainerAsync(parameters);
+    }
 
-        // Ports
-        var exposedPorts = new Dictionary<string, EmptyStruct>();
-        hostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>();
-
-        foreach (var port in ports)
-        {
-            exposedPorts.Add($"{port}/tcp", new());
-            exposedPorts.Add($"{port}/udp", new());
-
-            hostConfig.PortBindings.Add($"{port}/tcp", new List<PortBinding>()
-            {
-                new()
-                {
-                    HostPort = port.ToString(),
-                    HostIP = config.Docker.HostBindIp
-                }
-            });
-
-            hostConfig.PortBindings.Add($"{port}/udp", new List<PortBinding>()
-            {
-                new()
-                {
-                    HostPort = port.ToString(),
-                    HostIP = ConfigService.Get().Docker.HostBindIp
-                }
-            });
-        }
-
-        // Memory and swap
-
-        var memoryLimit = memory;
-        // The overhead multiplier gives the container a little bit more memory to prevent crashes
-        var memoryOverhead = memoryLimit + (memoryLimit * config.Server.MemoryOverheadMultiplier);
-        var swapLimit = config.Server.EnableSwap
-            ? memoryOverhead + (memoryOverhead * config.Server.SwapMultiplier)
-            : -1;
-
-        hostConfig.Memory = ByteSizeValue.FromMegaBytes((long)memoryOverhead, 1000).Bytes;
-        hostConfig.MemoryReservation = ByteSizeValue.FromMegaBytes(memoryLimit, 1000).Bytes;
-        hostConfig.MemorySwap =
-            swapLimit == -1 ? (long)swapLimit : ByteSizeValue.FromMegaBytes((long)swapLimit, 1000).Bytes;
-
-        // CPU limit
-        hostConfig.CPUQuota = cpu * 1000;
-        hostConfig.CPUPeriod = 100000;
-        hostConfig.CPUShares = 1024;
-
-        // Other resource config options
-        hostConfig.BlkioWeight = 100;
-        hostConfig.PidsLimit = pidsLimit;
-        hostConfig.OomKillDisable = true; // TODO: make config option
-
-        // Tmpfs
-        hostConfig.Tmpfs = new Dictionary<string, string>()
-        {
-            {
-                "/tmp", $"rw,exec,nosuid,size={config.Docker.TmpfsSize}M"
-            }
-        };
-
-        // Cap drops
-        hostConfig.CapDrop = new List<string>()
-        {
-            "setpcap", "mknod", "audit_write", "net_raw", "dac_override",
-            "fowner", "fsetid", "net_bind_service", "sys_chroot", "setfcap"
-        };
-
-        hostConfig.ReadonlyRootfs = true;
-
-        // Mounts
-        var mountList = mounts.Select(x => new Mount()
-        {
-            Source = x.Key,
-            Target = x.Value,
-            ReadOnly = false,
-            Type = "bind"
-        }).ToList();
-
-        hostConfig.Mounts = mountList;
-
-        Logger.Debug("Chowning directory mounts");
-        
-        foreach (var mount in mounts)
-        {
-            await ShellHelper.ExecuteCommand($"chown -R {MoonlightService.Uid}:{MoonlightService.Gid} {mount.Key}");
-        }
-        
-        Logger.Debug("Chowned directory mounts");
-        
-        // DNS
-        hostConfig.DNS = config.Docker.DnsServers;
-
-        // Log config
-        hostConfig.LogConfig = new()
-        {
-            Type = "local",
-            Config = new Dictionary<string, string>()
-        };
-
-        // Create the container
-        await Client.Containers.CreateContainerAsync(new()
-        {
-            Name = name,
-            WorkingDir = "/home/container/",
-            Image = image,
-            ExposedPorts = exposedPorts,
-            HostConfig = hostConfig,
-            AttachStderr = true,
-            AttachStdin = true,
-            AttachStdout = true,
-            Tty = true,
-            OpenStdin = true,
-            Hostname = name,
-            Env = new List<string>()
-            {
-                "STARTUP=java -jar server.jar"
-            },
-            User = $"{MoonlightService.Uid}:{MoonlightService.Gid}"
-        });
+    public async Task StartContainer(string id)
+    {
+        await Client.Containers.StartContainerAsync(id, new());
     }
 }

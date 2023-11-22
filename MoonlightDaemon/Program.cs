@@ -4,6 +4,7 @@ using MoonlightDaemon.App.Helpers.LogMigrator;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services;
+using MoonlightDaemon.App.Services.Monitors;
 using MoonlightDaemon.App.Services.Servers;
 using Serilog;
 
@@ -43,6 +44,7 @@ builder.Services.AddControllers();
 
 // Helpers
 builder.Services.AddSingleton<ShellHelper>();
+builder.Services.AddSingleton<VolumeHelper>();
 
 // Services
 builder.Services.AddSingleton(configService);
@@ -53,6 +55,9 @@ builder.Services.AddSingleton<DockerService>();
 // Services / Servers
 builder.Services.AddSingleton<ServerStartService>();
 
+// Services / Monitors
+builder.Services.AddHostedService<ContainerMonitorService>();
+
 var app = builder.Build();
 
 var moonlightService = app.Services.GetRequiredService<MoonlightService>();
@@ -61,35 +66,6 @@ await moonlightService.Initialize();
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
-
-Task.Run(async () =>
-{
-    try
-    {
-        await Task.Delay(TimeSpan.FromSeconds(1));
-
-        var demoServer = new Server()
-        {
-            Id = 1,
-            DockerImage = "moonlightpanel/images:minecraft17",
-            Cpu = 400,
-            Memory = 4096,
-            Ports = new List<int> { 25565 },
-            PidsLimit = 100
-        };
-
-        var serverService = app.Services.GetRequiredService<ServerService>();
-        Logger.Debug("Current server state: " + await serverService.GetServerState(demoServer));
-        Logger.Debug("Setting sever state to starting");
-        await serverService.SetServerState(demoServer, ServerState.Starting);
-        Logger.Debug("Current server state: " + await serverService.GetServerState(demoServer));
-    }
-    catch (Exception e)
-    {
-        Logger.Fatal("Error while debugging");
-        Logger.Fatal(e);
-    }
-});
 
 Logger.Info("Starting http server");
 app.Run();

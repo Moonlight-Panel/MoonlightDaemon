@@ -6,7 +6,8 @@ namespace MoonlightDaemon.App.Services;
 public class ConfigService
 {
     private readonly string Path = "/etc/moonlight/config.json";
-    private ConfigV1 Data;
+    private ConfigV1 Config;
+    private TempConfig TempConfig = new();
 
     public ConfigService()
     {
@@ -21,15 +22,16 @@ public class ConfigService
             File.WriteAllText(Path, "{}");
 
         var text = File.ReadAllText(Path);
-        Data = JsonConvert.DeserializeObject<ConfigV1>(text) ?? new();
+        Config = JsonConvert.DeserializeObject<ConfigV1>(text) ?? new();
         Save();
     }
 
     public void Save()
     {
-        var text = JsonConvert.SerializeObject(Data, Formatting.Indented);
+        var text = JsonConvert.SerializeObject(Config, Formatting.Indented);
         File.WriteAllText(Path, text);
     }
 
-    public ConfigV1 Get() => Data;
+    public ConfigV1 Get() => Config;
+    public TempConfig GetTemp() => TempConfig;
 }

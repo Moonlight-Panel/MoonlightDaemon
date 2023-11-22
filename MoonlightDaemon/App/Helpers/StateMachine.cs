@@ -1,4 +1,6 @@
-﻿namespace MoonlightDaemon.App.Helpers.StateMachines;
+﻿using MoonlightDaemon.App.Exceptions;
+
+namespace MoonlightDaemon.App.Helpers;
 
 public class StateMachine<T> where T : struct
 {
