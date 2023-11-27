@@ -1,3 +1,4 @@
+using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models.Enums;
 
@@ -8,10 +9,10 @@ public class Server
     public Environment RuntimeEnvironment { get; private set; }
     public Environment InstallEnvironment { get; private set; }
     public ServerConsole Console { get; private set; } = new();
-    public ServerData Configuration { get; set; }
+    public ServerData Configuration { get; private set; }
+    public StateMachine<ServerState> StateMachine { get; private set; }
 
     private readonly IServiceScope ServiceScope;
-    private StateMachine<ServerState> StateMachine;
     private Join2Start Join2Start;
 
     public Server(IServiceScope serviceScope)
@@ -34,9 +35,6 @@ public class Server
     {
         StateMachine = new(ServerState.Offline);
         
-        StateMachine.OnTransitioned += (_, state) => Logger.Debug($"Transitioned to {state}");
-        StateMachine.OnTransitioning += (_, state) => Logger.Debug($"Transitioning to {state}");
-
         await StateMachine.AddTransition(ServerState.Offline, ServerState.Starting, async () =>
         {
             await SetupRuntimeEnvironment();
@@ -47,45 +45,23 @@ public class Server
 
         await StateMachine.AddTransition(ServerState.Offline, ServerState.Installing, async () =>
         {
+            await Console.WriteSystemOutput("Preparing for installation");
             Directory.CreateDirectory($"/var/lib/moonlight/install/{Configuration.Id}");
-            await File.WriteAllTextAsync($"/var/lib/moonlight/install/{Configuration.Id}/install.sh", "ls; pwd; curl -o server.jar https://storage.endelon-hosting.de/mlv2/server.jar; ls");
+
+            await Console.WriteSystemOutput("Fetched install script");
+            await File.WriteAllTextAsync($"/var/lib/moonlight/install/{Configuration.Id}/install.sh",
+                "ls; pwd; curl -o server.jar https://storage.endelon-hosting.de/mlv2/server.jar; ls");
 
             var shellService = ServiceScope.ServiceProvider.GetRequiredService<ShellHelper>();
             await shellService.ExecuteCommand($"chmod +x /var/lib/moonlight/install/{Configuration.Id}/install.sh");
 
-            InstallEnvironment = new(ServiceScope, new()
-            {
-                Gid = 0,
-                Uid = 0,
-                Container = new()
-                {
-                    Name = $"moonlight-install-{Configuration.Id}",
-                    Cpu = Configuration.Limits.Cpu,
-                    Memory = Configuration.Limits.Memory,
-                    Disk = Configuration.Limits.Disk,
-                    DisableSwap = Configuration.Limits.DisableSwap,
-                    PidsLimit = Configuration.Limits.PidsLimit,
-                    EnableOomKill = Configuration.Limits.EnableOomKill,
-                    OverrideCommand = "/bin/bash /mnt/install/install.sh",
-                    WorkingDirectory = "/mnt/server"
-                },
-                DockerImage = "moonlightpanel/images:installerjava",
-                Ports = new()
-                {
-                    25565
-                },
-                Volumes = new()
-                {
-                    {
-                        $"/var/lib/moonlight/volumes/{Configuration.Id}",
-                        "/mnt/server"
-                    },
-                    {
-                        $"/var/lib/moonlight/install/{Configuration.Id}",
-                        "/mnt/install"
-                    }
-                }
-            });
+            await Console.WriteSystemOutput("Starting installation");
+            var config = Configuration.ToInstallEnvironmentData();
+
+            config.Uid = 0;
+            config.Gid = 0;
+
+            InstallEnvironment = new(ServiceScope, config);
 
             InstallEnvironment.Exited += async (_, _) => { await StateMachine.TransitionTo(ServerState.Offline); };
 
@@ -97,7 +73,9 @@ public class Server
 
         await StateMachine.AddTransition(ServerState.Installing, ServerState.Offline, async () =>
         {
-            // Handle install finish here
+            Logger.Debug("Cleaning up install volume");
+            await Console.WriteSystemOutput("Cleaning up install volume");
+            Directory.Delete($"/var/lib/moonlight/install/{Configuration.Id}", true);
         });
 
         #endregion
@@ -121,12 +99,12 @@ public class Server
         #region Request stopping
 
         await StateMachine.AddTransition(ServerState.Starting, ServerState.Stopping,
-            async () => { await RuntimeEnvironment.SendInput(Configuration.Image.StopCommand); });
+            async () => { await Console.WriteInput(Configuration.Image.StopCommand); });
 
         await StateMachine.AddTransition(ServerState.Running, ServerState.Stopping,
             async () => // requested server to stop
             {
-                await RuntimeEnvironment.SendInput(Configuration.Image.StopCommand);
+                await Console.WriteInput(Configuration.Image.StopCommand);
             });
 
         #endregion
@@ -172,55 +150,25 @@ public class Server
         if (RuntimeEnvironment.IsRunning)
             await RuntimeEnvironment.Kill();
 
-        // Destroy environment
-        await RuntimeEnvironment.Destory();
+        // Reset
         RuntimeEnvironment = null!;
     }
 
     private async Task SetupRuntimeEnvironment()
     {
-        RuntimeEnvironment = new(ServiceScope, new()
-        {
-            Gid = 998,
-            Uid = 998,
-            Ports = new()
-            {
-                25565
-            },
-            DockerImage = Configuration.Image.DockerImage,
-            Container = new()
-            {
-                Name = $"moonlight-runtime-{Configuration.Id}",
-                Cpu = Configuration.Limits.Cpu,
-                Memory = Configuration.Limits.Memory,
-                Disk = Configuration.Limits.Disk,
-                DisableSwap = Configuration.Limits.DisableSwap,
-                PidsLimit = Configuration.Limits.PidsLimit,
-                EnableOomKill = Configuration.Limits.EnableOomKill,
-                WorkingDirectory = "/home/container"
-            },
-            Volumes = new()
-            {
-                {
-                    $"/var/lib/moonlight/volumes/{Configuration.Id}",
-                    "/home/container"
-                }
-            },
-            Variables = new()
-            {
-                {
-                    "STARTUP",
-                    Configuration.Startup
-                }
-            }
-        });
+        var config = Configuration.ToRuntimeEnvironmentData();
+
+        config.Uid = 998;
+        config.Gid = 998;
+
+        RuntimeEnvironment = new(ServiceScope, config);
 
         RuntimeEnvironment.Exited += async (_, _) =>
         {
             if (RuntimeEnvironment.HasBeenKilled)
                 return;
 
-            if (Configuration.Join2Start)
+            if (Configuration.Join2Start && StateMachine.State == ServerState.Stopping)
                 await StateMachine.TransitionTo(ServerState.Join2Start);
             else
                 await StateMachine.TransitionTo(ServerState.Offline);

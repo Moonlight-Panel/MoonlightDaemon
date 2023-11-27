@@ -82,4 +82,47 @@ public class DockerService
                     onProgress.Invoke(message);
             }));
     }
+
+    public async Task<string[]> GetContainerLogs(string name)
+    {
+        // Get the raw log stream from docker
+        var stream = await Client.Containers.GetContainerLogsAsync(name, true, new()
+        {
+            ShowStderr = true,
+            ShowStdout = true,
+            Timestamps = false
+        }, CancellationToken.None);
+        
+        var logs = new List<string>();
+        
+        // Read the stream
+        var output = await stream.ReadOutputToEndAsync(CancellationToken.None);
+
+        // Filter and parse stdout
+        foreach (var line in output.stdout.Split("\n").Where(x => !string.IsNullOrEmpty(x)))
+            logs.Add(line);
+
+        // Filter and parse stderr
+        foreach (var line in output.stderr.Split("\n").Where(x => !string.IsNullOrEmpty(x)))
+            logs.Add(line);
+
+        return logs.ToArray();
+    }
+
+    public async Task<bool> ContainerExistsAndIsRunning(string name)
+    {
+        try
+        {
+            var result = await Client.Containers.InspectContainerAsync(name);
+
+            if (result == null)
+                return false;
+            
+            return result.State.Running;
+        }
+        catch (DockerContainerNotFoundException)
+        {
+            return false;
+        }
+    }
 }
