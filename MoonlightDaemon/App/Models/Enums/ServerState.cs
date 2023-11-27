@@ -1,4 +1,4 @@
-﻿namespace MoonlightDaemon.App.Models.Enums;
+namespace MoonlightDaemon.App.Models.Enums;
 
 public enum ServerState
 {
@@ -6,6 +6,6 @@ public enum ServerState
     Starting,
     Running,
     Stopping,
-    Join2Start,
-    Installing
+    Installing,
+    Join2Start
 }

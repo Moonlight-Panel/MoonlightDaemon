@@ -1,25 +1,19 @@
-﻿using Docker.DotNet;
+using Docker.DotNet;
 using Docker.DotNet.Models;
-using MoonlightDaemon.App.Helpers;
 
 namespace MoonlightDaemon.App.Services;
 
 public class DockerService
 {
     private readonly ConfigService ConfigService;
-    private readonly MoonlightService MoonlightService;
-    private readonly ShellHelper ShellHelper;
-
     private readonly DockerClient Client;
 
-    public DockerService(ConfigService configService, MoonlightService moonlightService, ShellHelper shellHelper)
+    public DockerService(ConfigService configService)
     {
         ConfigService = configService;
-        MoonlightService = moonlightService;
-        ShellHelper = shellHelper;
-
+        
         Client = new DockerClientConfiguration(
-                new Uri("unix:///var/run/docker.sock"))
+                new Uri(configService.Get().Docker.Socket))
             .CreateClient();
     }
 
@@ -36,30 +30,31 @@ public class DockerService
         }
     }
 
-    public async Task<bool> IsContainerRunning(string name)
-    {
-        try
-        {
-            var result = await Client.Containers.InspectContainerAsync(name);
-            return result.State.Running;
-        }
-        catch (DockerContainerNotFoundException)
-        {
-            return false;
-        }
-    }
+    public async Task RemoveContainer(string name) => await Client.Containers.RemoveContainerAsync(name, new());
 
-    public async Task RemoveContainer(string name)
-    {
-        await Client.Containers.RemoveContainerAsync(name, new()
+    public async Task<CreateContainerResponse> CreateContainer(CreateContainerParameters parameters) =>
+        await Client.Containers.CreateContainerAsync(parameters);
+
+    public async Task StartContainer(string name) => await Client.Containers.StartContainerAsync(name, new());
+
+    public async Task KillContainer(string name) => await Client.Containers.KillContainerAsync(name, new());
+
+    public async Task StopContainer(string name) => await Client.Containers.StopContainerAsync(name,
+        new()
         {
-            Force = false,
-            RemoveLinks = false,
-            RemoveVolumes = false
+            WaitBeforeKillSeconds = 3600
         });
-    }
 
-    public async Task PullDockerImage(string image, Action<JSONMessage>? onProgress = null)
+    public async Task<MultiplexedStream> AttachContainer(string name) => await Client.Containers.AttachContainerAsync(
+        name, true, new ContainerAttachParameters()
+        {
+            Stderr = true,
+            Stream = true,
+            Stdout = true,
+            Stdin = true
+        });
+
+    public async Task PullImage(string image, Action<JSONMessage>? onProgress = null)
     {
         var parts = image.Split(":");
 
@@ -86,15 +81,5 @@ public class DockerService
                 if(onProgress != null)
                     onProgress.Invoke(message);
             }));
-    }
-
-    public async Task CreateContainer(CreateContainerParameters parameters)
-    {
-        await Client.Containers.CreateContainerAsync(parameters);
-    }
-
-    public async Task StartContainer(string id)
-    {
-        await Client.Containers.StartContainerAsync(id, new());
     }
 }

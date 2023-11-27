@@ -1,4 +1,4 @@
-﻿using MoonlightDaemon.App.Configuration;
+using MoonlightDaemon.App.Configuration;
 using Newtonsoft.Json;
 
 namespace MoonlightDaemon.App.Services;

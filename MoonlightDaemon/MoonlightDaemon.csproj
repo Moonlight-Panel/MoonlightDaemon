@@ -18,7 +18,6 @@
       <Folder Include="App\Http\Middleware\" />
       <Folder Include="App\Http\Requests\" />
       <Folder Include="App\Http\Resources\" />
-      <Folder Include="App\Models\Abstractions\" />
       <Folder Include="App\Repositories\" />
     </ItemGroup>
 

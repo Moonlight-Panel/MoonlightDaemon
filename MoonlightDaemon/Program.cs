@@ -2,21 +2,24 @@ using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Helpers.LogMigrator;
 using MoonlightDaemon.App.Models;
+using MoonlightDaemon.App.Models.Abstractions;
 using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services;
 using MoonlightDaemon.App.Services.Monitors;
-using MoonlightDaemon.App.Services.Servers;
 using Serilog;
 
 // Build app
 var builder = WebApplication.CreateBuilder(args);
+
 var configService = new ConfigService();
 
 // Setup loggers
+#region Setup logging
+
 var logConfig = new LoggerConfiguration();
 
 logConfig = logConfig.Enrich.FromLogContext()
-    .WriteTo.File(configService.Get().Storage.LogPath)
+    .WriteTo.File(configService.Get().Paths.Log)
     .WriteTo.Console(
         outputTemplate:
         "{Timestamp:HH:mm:ss} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}");
@@ -36,6 +39,9 @@ var config =
         "{\"LogLevel\":{\"Default\":\"Information\",\"Microsoft.AspNetCore\":\"Warning\"}}");
 builder.Logging.AddConfiguration(config.Build());
 
+
+#endregion
+
 //
 Logger.Info("Starting MoonlightDaemon v2");
 
@@ -48,72 +54,71 @@ builder.Services.AddSingleton<VolumeHelper>();
 
 // Services
 builder.Services.AddSingleton(configService);
-builder.Services.AddSingleton<MoonlightService>();
-builder.Services.AddSingleton<ServerService>();
 builder.Services.AddSingleton<DockerService>();
-
-// Services / Servers
-builder.Services.AddSingleton<ServerStartService>();
 
 // Services / Monitors
 builder.Services.AddSingleton<ContainerMonitorService>();
 
 var app = builder.Build();
 
-// Autostart services
-var moonlightService = app.Services.GetRequiredService<MoonlightService>();
-await moonlightService.Initialize();
-
-var containerMonitorService = app.Services.GetRequiredService<ContainerMonitorService>();
-await containerMonitorService.Start();
-
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
-Logger.Info("Starting http server");
+// Autostart monitors
+var containerMonitorService = app.Services.GetRequiredService<ContainerMonitorService>();
+await containerMonitorService.Start();
 
-Task.Run(async () => {
-    try
+// Debug
+var scope = app.Services.CreateScope();
+var server = new Server(scope);
+
+await server.Bind(new ServerData()
+{
+    Id = 1,
+    Startup = "java -jar server.jar",
+    Join2Start = false,
+    Image = new()
     {
-        var server = new Server();
-        server.Id = 1;
-
-        server.Image = new()
-        {
-            DockerImage = "moonlightpanel/images:minecraft17"
-        };
-
-        server.Allocations = new()
-        {
-            new()
-            {
-                Port = 25565
-            }
-        };
-
-        server.Limits = new()
-        {
-            Cpu = 100,
-            DisableSwap = false,
-            EnableOomKill = false,
-            Memory = 4096,
-            Pids = 100,
-            Storage = 10240
-        };
-        
-        var serverService = app.Services.GetRequiredService<ServerService>();
-        
-        // Store server to cache in order to use it
-        await serverService.StoreServerInCache(server);
-        
-        await serverService.SetServerState(server.Id, ServerState.Starting);
-    }
-    catch (Exception e)
+        StopCommand = "stop",
+        DockerImage = "moonlightpanel/images:minecraft17"
+    },
+    Allocations = new()
     {
-        Console.WriteLine(e);
-        throw;
+        new()
+        {
+            Port = 25565
+        }
+    },
+    Limits = new()
+    {
+        Cpu = 400,
+        Disk = 10240,
+        Memory = 4096,
+        DisableSwap = false,
+        PidsLimit = 100,
+        EnableOomKill = false
+    },
+    MainAllocation = new()
+    {
+        Port = 25565
     }
 });
+
+//server.Console.OnAnyOutput += (_, msg) => Console.WriteLine($"[{server.Configuration.Id}] > {msg}");
+
+//await server.SetState(ServerState.Installing);
+
+Console.ReadLine();
+
+await server.SetState(ServerState.Starting);
+
+var msg = Console.ReadLine();
+
+await server.Console.WriteInput(msg ?? "");
+
+Console.ReadLine();
+
+await server.SetState(ServerState.Stopping);
 
 app.Run();

@@ -1,2 +1,0 @@
-﻿Start-Process wsl -ArgumentList "-d Ubuntu-22.04 cd /mnt/c/Users/marce/Github/Moonlight-Panel/MoonlightDaemon; sudo dotnet run --project MoonlightDaemon" -NoNewWindow -Wait
-Start-Process dotnet -ArgumentList "restore" -NoNewWindow -Wait
