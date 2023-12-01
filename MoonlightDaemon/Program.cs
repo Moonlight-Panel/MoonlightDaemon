@@ -1,8 +1,9 @@
+using Docker.DotNet;
 using MoonlightDaemon.App.Extensions;
+using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Helpers.LogMigrator;
-using MoonlightDaemon.App.Models;
-using MoonlightDaemon.App.Models.Abstractions;
+using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services;
 using MoonlightDaemon.App.Services.Monitors;
@@ -14,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 var configService = new ConfigService();
 
 // Setup loggers
+
 #region Setup logging
 
 var logConfig = new LoggerConfiguration();
@@ -39,7 +41,6 @@ var config =
         "{\"LogLevel\":{\"Default\":\"Information\",\"Microsoft.AspNetCore\":\"Warning\"}}");
 builder.Logging.AddConfiguration(config.Build());
 
-
 #endregion
 
 //
@@ -54,10 +55,19 @@ builder.Services.AddSingleton<VolumeHelper>();
 
 // Services
 builder.Services.AddSingleton(configService);
-builder.Services.AddSingleton<DockerService>();
+builder.Services.AddSingleton<ServerService>();
 
 // Services / Monitors
 builder.Services.AddSingleton<ContainerMonitorService>();
+
+// Docker Client
+builder.Services.AddSingleton(
+    new DockerClientConfiguration(
+        new Uri(
+            configService.Get().Docker.Socket
+        )
+    ).CreateClient()
+);
 
 var app = builder.Build();
 
@@ -65,23 +75,25 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
-// Autostart monitors
-var containerMonitorService = app.Services.GetRequiredService<ContainerMonitorService>();
-await containerMonitorService.Start();
+// Auto start background services
+app.Services.GetRequiredService<ContainerMonitorService>();
 
-// Debug
-var scope = app.Services.CreateScope();
-var server = new Server(scope);
+var serverService = app.Services.GetRequiredService<ServerService>();
 
-await server.Bind(new ServerData()
+await serverService.AddFromConfiguration(new ServerConfiguration()
 {
     Id = 1,
-    Startup = "java -jar server.jar",
-    Join2Start = false,
+    StartupCommand = "java -jar server.jar",
     Image = new()
     {
-        StopCommand = "stop",
-        DockerImage = "moonlightpanel/images:minecraft17"
+        DockerImage = "moonlightpanel/images:minecraft17",
+        StopCommand = "stop"
+    },
+    Limits = new()
+    {
+        Cpu = 400,
+        Memory = 4096,
+        Disk = 10240
     },
     Allocations = new()
     {
@@ -90,35 +102,52 @@ await server.Bind(new ServerData()
             Port = 25565
         }
     },
-    Limits = new()
-    {
-        Cpu = 400,
-        Disk = 10240,
-        Memory = 4096,
-        DisableSwap = false,
-        PidsLimit = 100,
-        EnableOomKill = false
-    },
     MainAllocation = new()
     {
         Port = 25565
     }
 });
 
-//server.Console.OnAnyOutput += (_, msg) => Console.WriteLine($"[{server.Configuration.Id}] > {msg}");
+await serverService.Restore();
 
-//await server.SetState(ServerState.Installing);
+var server = await serverService.GetById(1);
+
+if (server == null)
+    throw new Exception(":(");
+
+server.Console.OnNewLogMessage += (_, line) =>
+{
+    Console.WriteLine(line);
+};
+
+server.State.OnTransitioned += (_, state) => Logger.Debug($"Transitioned to {state}");
 
 Console.ReadLine();
 
-await server.SetState(ServerState.Starting);
+if (server.State.State == ServerState.Offline)
+{
+    await server.Start();
+    Console.ReadLine();
+}
 
-var msg = Console.ReadLine();
+await server.Stop();
+/*
+var server = await serverService.GetById(1);
 
-await server.Console.WriteInput(msg ?? "");
+if (server == null)
+    throw new Exception(":(");
+
+server.Stream.OnOutput += (_, line) =>
+{
+    Console.WriteLine(line);
+};
+
+server.State.OnTransitioned += (_, state) => Logger.Debug($"Transitioned to {state}");
+
+await server.Start();
 
 Console.ReadLine();
 
-await server.SetState(ServerState.Stopping);
-
+await server.Kill();
+*/
 app.Run();

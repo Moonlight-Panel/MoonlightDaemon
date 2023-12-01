@@ -17,33 +17,31 @@ public class ContainerMonitorService
         Client = new DockerClientConfiguration(
                 new Uri(configService.Get().Docker.Socket))
             .CreateClient();
+
+        Task.Run(Work);
     }
 
-    public Task Start()
+    public async Task Work()
     {
-        Task.Run(async () =>
+        while (true)
         {
-            while (true)
+            try
             {
-                try
-                {
-                    await Client.System.MonitorEventsAsync(
-                        new(),
-                        new Progress<Message>(Handler)
-                    );
+                await Client.System.MonitorEventsAsync(
+                    new(),
+                    new Progress<Message>(Handler)
+                );
 
-                    Logger.Warn("Container monitor stream exited. Restarting");
-                }
-                catch (Exception e)
-                {
-                    Logger.Warn("Error while monitoring containers");
-                    Logger.Warn(e);
-                    await Task.Delay(TimeSpan.FromSeconds(3));
-                }
+                Logger.Warn("Container monitor stream exited. Restarting");
             }
-        });
-
-        return Task.CompletedTask;
+            catch (Exception e)
+            {
+                Logger.Warn("Error while monitoring containers");
+                Logger.Warn(e);
+                    
+                await Task.Delay(TimeSpan.FromSeconds(3));
+            }
+        }
     }
 
     private async void Handler(Message message)
@@ -51,10 +49,18 @@ public class ContainerMonitorService
         if(message.Type != "container")
             return;
         
-        await OnContainerEvent.InvokeAsync(new ContainerMonitorEvent()
+        try
         {
-            Id = message.ID,
-            Action = message.Action
-        });
+            await OnContainerEvent.InvokeAsync(new ContainerMonitorEvent()
+            {
+                Id = message.ID,
+                Action = message.Action
+            });
+        }
+        catch (Exception e)
+        {
+            Logger.Warn("Unhandled error while emitting container monitor event");
+            Logger.Warn(e);
+        }
     }
 }
