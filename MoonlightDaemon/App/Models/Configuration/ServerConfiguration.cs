@@ -16,7 +16,7 @@ public class ServerConfiguration
         public int Memory { get; set; }
         public int Disk { get; set; }
         public bool DisableSwap { get; set; }
-        public int PidsLimit { get; set; }
+        public int PidsLimit { get; set; } = 100;
         public bool EnableOomKill { get; set; }
     }
     

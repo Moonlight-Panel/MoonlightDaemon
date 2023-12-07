@@ -26,37 +26,40 @@ public static class ServerInstallExtensions
             await server.EnsureRuntimeVolume(0, 0);
             await server.EnsureInstallVolume(0, 0);
 
-            try
+            // Remove existing container if it exists
+            var existingContainer = await client.Containers.InspectContainerSafeAsync(containerName);
+            
+            if(existingContainer != null && existingContainer.State.Running)
+                return;
+
+            if (existingContainer != null)
             {
-                var result = await client.Containers.InspectContainerSafeAsync(containerName);
-
-                if (result == null)
-                    throw new IOException("An unknown error has occured while inspecting container");
-
-                if (result.State.Running) // Container already existing
-                    return;
-
                 await server.Log("Removing existing container");
                 await client.Containers.RemoveContainerAsync(containerName, new());
-            }
-            catch (DockerContainerNotFoundException)
-            {
             }
 
             await server.Log("Downloading docker image");
             await server.EnsureImageExists("moonlightpanel/images:installerjava");
             await server.Log("Downloaded docker image");
 
-            await server.Log("Fetching install script");
+            await server.Log("Fetching install configuration");
+            var moonlightService = server.ServiceProvider.GetRequiredService<MoonlightService>();
+            var configuration = await moonlightService.GetInstallConfiguration(server);
+
+            if (configuration == null)
+            {
+                await server.Log("Unable to start installation process due to an error while fetching the install configuration from the panel");
+                return;
+            }
+            
             var installScriptPath = PathBuilder.File(server.Configuration.GetInstallVolumePath(), "install.sh");
-            await File.WriteAllTextAsync(installScriptPath,
-                "ls -la; whoami; curl -o server.jar https://storage.endelon-hosting.de/mlv2/server.jar");
+            await File.WriteAllTextAsync(installScriptPath, configuration.Script);
 
             var configService = server.ServiceProvider.GetRequiredService<ConfigService>();
             var container =
-                server.Configuration.ToInstallContainerParameters(configService, "moonlightpanel/images:installerjava");
+                server.Configuration.ToInstallContainerParameters(configService, configuration.DockerImage);
 
-            container.Cmd = "/bin/bash /mnt/install/install.sh".Split(" ");
+            container.Cmd = $"{configuration.Shell} /mnt/install/install.sh".Split(" ");
 
             await server.Log("Creating container");
             await client.Containers.CreateContainerAsync(container);
@@ -97,6 +100,8 @@ public static class ServerInstallExtensions
             await client.Containers.RemoveContainerAsync($"moonlight-install-{server.Configuration.Id}", new());
 
             await server.Log("Removed install container");
+            
+            await server.State.TransitionTo(ServerState.Offline);
         });
     }
 }

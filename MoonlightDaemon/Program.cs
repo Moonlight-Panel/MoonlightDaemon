@@ -3,8 +3,6 @@ using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Helpers.LogMigrator;
-using MoonlightDaemon.App.Models.Configuration;
-using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services;
 using MoonlightDaemon.App.Services.Monitors;
 using Serilog;
@@ -56,6 +54,8 @@ builder.Services.AddSingleton<VolumeHelper>();
 // Services
 builder.Services.AddSingleton(configService);
 builder.Services.AddSingleton<ServerService>();
+builder.Services.AddSingleton<NodeService>();
+builder.Services.AddSingleton<MoonlightService>();
 
 // Services / Monitors
 builder.Services.AddSingleton<ContainerMonitorService>();
@@ -78,59 +78,67 @@ app.MapControllers();
 // Auto start background services
 app.Services.GetRequiredService<ContainerMonitorService>();
 
-var serverService = app.Services.GetRequiredService<ServerService>();
+/*
+ * var serverService = app.Services.GetRequiredService<ServerService>();
+   
+   await serverService.AddFromConfiguration(new ServerConfiguration()
+   {
+   Id = 1,
+   StartupCommand = "java -jar server.jar",
+   Image = new()
+   {
+   DockerImage = "moonlightpanel/images:minecraft17",
+   StopCommand = "stop"
+   },
+   Limits = new()
+   {
+   Cpu = 400,
+   Memory = 4096,
+   Disk = 10240
+   },
+   Allocations = new()
+   {
+   new()
+   {
+   Port = 25565
+   }
+   },
+   MainAllocation = new()
+   {
+   Port = 25565
+   }
+   });
+   
+   await serverService.Restore();
+   
+   var server = await serverService.GetById(1);
+   
+   if (server == null)
+   throw new Exception(":(");
+   
+   server.Console.OnNewLogMessage += (_, line) =>
+   {
+   Console.WriteLine(line);
+   };
+   
+   server.State.OnTransitioned += (_, state) => Logger.Debug($"Transitioned to {state}");
+   
+   Console.ReadLine();
+   
+   await server.Reinstall();
+   
+   Console.ReadLine();
+   
+   if (server.State.State == ServerState.Offline)
+   {
+   await server.Start();
+   Console.ReadLine();
+   }
+   
+   await server.Stop();
+ */
 
-await serverService.AddFromConfiguration(new ServerConfiguration()
-{
-    Id = 1,
-    StartupCommand = "java -jar server.jar",
-    Image = new()
-    {
-        DockerImage = "moonlightpanel/images:minecraft17",
-        StopCommand = "stop"
-    },
-    Limits = new()
-    {
-        Cpu = 400,
-        Memory = 4096,
-        Disk = 10240
-    },
-    Allocations = new()
-    {
-        new()
-        {
-            Port = 25565
-        }
-    },
-    MainAllocation = new()
-    {
-        Port = 25565
-    }
-});
 
-await serverService.Restore();
-
-var server = await serverService.GetById(1);
-
-if (server == null)
-    throw new Exception(":(");
-
-server.Console.OnNewLogMessage += (_, line) =>
-{
-    Console.WriteLine(line);
-};
-
-server.State.OnTransitioned += (_, state) => Logger.Debug($"Transitioned to {state}");
-
-Console.ReadLine();
-
-if (server.State.State == ServerState.Offline)
-{
-    await server.Start();
-    Console.ReadLine();
-}
-
-await server.Stop();
 /*
 var server = await serverService.GetById(1);
 
@@ -150,4 +158,38 @@ Console.ReadLine();
 
 await server.Kill();
 */
-app.Run();
+Task.Run(app.Run);
+
+await Task.Delay(TimeSpan.FromSeconds(3));
+
+Logger.Info("Sending boot signal to panel");
+var moonlightService = app.Services.GetRequiredService<MoonlightService>();
+await moonlightService.SendBootSignal();
+
+Console.ReadLine();
+
+var serverService = app.Services.GetRequiredService<ServerService>();
+var server = await serverService.GetById(1);
+
+if (server == null)
+    throw new Exception(":(");
+   
+server.Console.OnNewLogMessage += (_, line) =>
+{
+    Console.WriteLine(line);
+};
+   
+server.State.OnTransitioned += (_, state) => Logger.Debug($"Transitioned to {state}");
+
+while (true)
+{
+    Console.WriteLine("Enter cmd:");
+    var cmd = Console.ReadLine() ?? "";
+
+    if (cmd == "start")
+        await server.Start();
+    else if (cmd == "reinstall")
+        await server.Reinstall();
+    else if (cmd == "stop")
+        await server.Stop();
+}
