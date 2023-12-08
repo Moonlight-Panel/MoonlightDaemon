@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.ComTypes;
 using Docker.DotNet;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
@@ -5,6 +6,7 @@ using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Models.Enums;
+using MoonlightDaemon.App.Packets.Server;
 using MoonlightDaemon.App.Services.Monitors;
 
 namespace MoonlightDaemon.App.Services;
@@ -14,14 +16,17 @@ public class ServerService
     private readonly IServiceProvider ServiceProvider;
     private readonly ContainerMonitorService MonitorService;
     private readonly DockerClient DockerClient;
+    private readonly MoonlightService MoonlightService;
     private readonly List<Server> Servers = new();
 
     public ServerService(
         ContainerMonitorService monitorService,
         DockerClient dockerClient,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider,
+        MoonlightService moonlightService)
     {
         ServiceProvider = serviceProvider;
+        MoonlightService = moonlightService;
         MonitorService = monitorService;
         DockerClient = dockerClient;
 
@@ -73,6 +78,17 @@ public class ServerService
         stateMachine.AddTransition(ServerState.Stopping, ServerState.Join2Start);
         stateMachine.AddTransition(ServerState.Join2Start, ServerState.Offline);
         stateMachine.AddTransition(ServerState.Join2Start, ServerState.Starting);
+        
+        stateMachine.OnTransitioned += async (_, state) =>
+        {
+            await MoonlightService.SendWsPacket(new ServerStateUpdate()
+            {
+                Id = configuration.Id,
+                State = state
+            });
+            
+            Logger.Debug("Sent packet");
+        };
 
         var server = new Server()
         {
@@ -146,8 +162,6 @@ public class ServerService
     {
         lock (Servers)
             Servers.Clear();
-        
-        //TODO: Remove websocket connections etc
         
         return Task.CompletedTask;
     }

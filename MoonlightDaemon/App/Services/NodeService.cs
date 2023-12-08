@@ -6,17 +6,19 @@ namespace MoonlightDaemon.App.Services;
 public class NodeService
 {
     private readonly List<ServerConfiguration> BootServerConfigurations = new();
+    
     private readonly ServerService ServerService;
-
-    public NodeService(ServerService serverService)
-    {
-        ServerService = serverService;
-    }
+    private readonly MoonlightService MoonlightService;
 
     public bool IsBooting { get; private set; } = false;
     
+    public NodeService(ServerService serverService, MoonlightService moonlightService)
+    {
+        ServerService = serverService;
+        MoonlightService = moonlightService;
+    }
 
-    public async Task StartBoot()
+    public Task StartBoot()
     {
         Logger.Info("Starting remote boot");
         
@@ -25,9 +27,10 @@ public class NodeService
         lock (BootServerConfigurations)
             BootServerConfigurations.Clear();
         
+        return Task.CompletedTask;
     }
 
-    public async Task AddBootServers(ServerConfiguration[] configurations)
+    public Task AddBootServers(ServerConfiguration[] configurations)
     {
         Logger.Info($"Receiving {configurations.Length} server configurations");
         
@@ -35,6 +38,8 @@ public class NodeService
         {
             BootServerConfigurations.AddRange(configurations);
         }
+        
+        return Task.CompletedTask;
     }
 
     public async Task FinishBoot()
@@ -57,6 +62,8 @@ public class NodeService
             await ServerService.AddFromConfiguration(serverConfiguration);
 
         await ServerService.Restore();
+        
+        await MoonlightService.ReconnectWebsocket();
 
         IsBooting = false;
     }
