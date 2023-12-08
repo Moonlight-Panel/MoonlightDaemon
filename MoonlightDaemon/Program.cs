@@ -169,7 +169,7 @@ await moonlightService.SendBootSignal();
 Console.ReadLine();
 
 var serverService = app.Services.GetRequiredService<ServerService>();
-var server = await serverService.GetById(1);
+var server = await serverService.GetById(2);
 
 if (server == null)
     throw new Exception(":(");
