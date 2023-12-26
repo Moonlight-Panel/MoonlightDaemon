@@ -171,7 +171,7 @@ public static class ServerConfigurationExtensions
         // -- Logging
         container.HostConfig.LogConfig = new()
         {
-            Type = "local",
+            Type = "json-file",
             Config = new Dictionary<string, string>()
         };
         

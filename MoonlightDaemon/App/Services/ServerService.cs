@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices.ComTypes;
 using Docker.DotNet;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
@@ -17,7 +16,9 @@ public class ServerService
     private readonly ContainerMonitorService MonitorService;
     private readonly DockerClient DockerClient;
     private readonly MoonlightService MoonlightService;
+    
     private readonly List<Server> Servers = new();
+    private readonly Dictionary<int, DateTime> ConsoleSubscribers = new();
 
     public ServerService(
         ContainerMonitorService monitorService,
@@ -30,7 +31,7 @@ public class ServerService
         MonitorService = monitorService;
         DockerClient = dockerClient;
 
-        MonitorService.OnContainerEvent += async (_, data) =>
+        MonitorService.OnContainerEvent += async data =>
         {
             if (data.Action != "die") // Only listen to callbacks we are interested in
                 return;
@@ -60,6 +61,27 @@ public class ServerService
 
             await server.HandleExited();
         };
+
+        Task.Run(async () =>
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1));
+
+                lock (ConsoleSubscribers)
+                {
+                    var idsOverLimit = ConsoleSubscribers
+                        .Where(x => (DateTime.UtcNow - x.Value).TotalMinutes > 15)
+                        .Select(x => x.Key);
+
+                    foreach (var i in idsOverLimit)
+                    {
+                        ConsoleSubscribers.Remove(i);
+                        Logger.Debug($"Removed console subscriber for {i}");
+                    }
+                }
+            }
+        });
     }
 
     public Task AddFromConfiguration(ServerConfiguration configuration)
@@ -79,15 +101,13 @@ public class ServerService
         stateMachine.AddTransition(ServerState.Join2Start, ServerState.Offline);
         stateMachine.AddTransition(ServerState.Join2Start, ServerState.Starting);
         
-        stateMachine.OnTransitioned += async (_, state) =>
+        stateMachine.OnTransitioned += async state =>
         {
             await MoonlightService.SendWsPacket(new ServerStateUpdate()
             {
                 Id = configuration.Id,
                 State = state
             });
-            
-            Logger.Debug("Sent packet");
         };
 
         var server = new Server()
@@ -97,6 +117,21 @@ public class ServerService
             State = stateMachine,
             LockHandle = new SemaphoreSlim(1, 1),
             Console = new()
+        };
+
+        server.Console.OnNewLogMessage += async message =>
+        {
+            lock (ConsoleSubscribers)
+            {
+                if(!ConsoleSubscribers.ContainsKey(server.Configuration.Id))
+                    return;
+            }
+
+            await MoonlightService.SendWsPacket(new ServerConsoleMessage()
+            {
+                Id = server.Configuration.Id,
+                Message = message
+            });
         };
 
         lock (Servers)
@@ -153,6 +188,13 @@ public class ServerService
                 await server.State.SetState(ServerState.Running);
                 await server.Reattach();
 
+                // Notify moonlight about the restored server state
+                await MoonlightService.SendWsPacket(new ServerStateUpdate()
+                {
+                    Id = server.Configuration.Id,
+                    State = ServerState.Running
+                });
+
                 Logger.Info($"Restored server {server.Configuration.Id} and reattached stream");
             }
         }
@@ -161,8 +203,55 @@ public class ServerService
     public Task Clear()
     {
         lock (Servers)
+        {
+            foreach (var server in Servers)
+            {
+                server.Console.OnNewLogMessage.ClearSubscribers();
+            }
+            
             Servers.Clear();
+        }
+        
+        // Dont clear subscribers here as they are needed
+        // in a daemon restart and dont exist when its a clean start anyways
+        // lock (ConsoleSubscribers)
+        // ConsoleSubscribers.Clear();
         
         return Task.CompletedTask;
+    }
+
+    public async Task SubscribeToConsole(int id)
+    {
+        bool wasAlreadyAdded;
+
+        lock (ConsoleSubscribers)
+        {
+            wasAlreadyAdded = ConsoleSubscribers
+                .Where(x => (DateTime.UtcNow - x.Value).TotalMinutes < 15)
+                .Any(x => x.Key == id);
+        }
+        
+        lock (ConsoleSubscribers)
+            ConsoleSubscribers[id] = DateTime.UtcNow;
+
+        // When the subscription is new, we want to stream all previous messages to restore console history
+        if (!wasAlreadyAdded)
+        {
+            var server = await GetById(id);
+            
+            if(server == null)
+                return;
+
+            var messages = await server.Console.GetAllLogMessages();
+
+            foreach (var message in messages)
+            {
+                await MoonlightService.SendWsPacket(new ServerConsoleMessage()
+                {
+                    Id = id,
+                    Message = message
+                });
+            }
+        }
     }
 }

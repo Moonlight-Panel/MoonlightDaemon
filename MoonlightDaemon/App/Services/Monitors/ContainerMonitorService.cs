@@ -8,7 +8,7 @@ namespace MoonlightDaemon.App.Services.Monitors;
 
 public class ContainerMonitorService
 {
-    public EventHandler<ContainerMonitorEvent> OnContainerEvent { get; set; }
+    public SmartEventHandler<ContainerMonitorEvent> OnContainerEvent { get; set; } = new();
     
     private readonly DockerClient Client;
 
@@ -51,7 +51,7 @@ public class ContainerMonitorService
         
         try
         {
-            await OnContainerEvent.InvokeAsync(new ContainerMonitorEvent()
+            await OnContainerEvent.Invoke(new ContainerMonitorEvent()
             {
                 Id = message.ID,
                 Action = message.Action

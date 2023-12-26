@@ -20,8 +20,11 @@ public class ServersController : Controller
     {
         var existingServer = await ServerService.GetById(configuration.Id);
 
-        if (existingServer != null) // TODO: Update configuration
+        if (existingServer != null) // Update existing server configuration if a server configuration is already cached
+        {
+            existingServer.Configuration = configuration;
             return Ok();
+        }
 
         await ServerService.AddFromConfiguration(configuration);
         return Ok();

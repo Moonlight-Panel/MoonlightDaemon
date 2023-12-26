@@ -6,7 +6,7 @@ namespace MoonlightDaemon.App.Helpers;
 
 public class ServerConsole
 {
-    public EventHandler<string> OnNewLogMessage { get; set; }
+    public SmartEventHandler<string> OnNewLogMessage { get; set; } = new();
 
     private readonly List<string> Logs = new();
     private MultiplexedStream? Stream;
@@ -42,7 +42,7 @@ public class ServerConsole
         return Task.CompletedTask;
     }
 
-    public async Task WriteLine(string content)
+    public async Task WriteLine(string content, bool suppressEvent = false)
     {
         lock (Logs)
         {
@@ -66,13 +66,17 @@ public class ServerConsole
             Logs.Add(content);
         }
 
-        await OnNewLogMessage.InvokeAsync(content);
+        if(!suppressEvent)
+            await OnNewLogMessage.Invoke(content);
     }
 
     public async Task SendCommand(string command)
     {
-        if (Stream == null)
+        if (Stream == null) // This should never happen as it can lead to a broken state machine
+        {
+            Logger.Warn("Tried to write to a server console without a stream connected");
             return;
+        }
 
         var buffer = Encoding.UTF8.GetBytes(command + "\n");
         await Stream.WriteAsync(buffer, 0, buffer.Length, CancellationToken.None);

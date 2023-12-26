@@ -16,7 +16,6 @@
     <ItemGroup>
       <Folder Include="App\Http\Middleware\" />
       <Folder Include="App\Http\Requests\" />
-      <Folder Include="App\Packets\Client\" />
     </ItemGroup>
 
     <ItemGroup>

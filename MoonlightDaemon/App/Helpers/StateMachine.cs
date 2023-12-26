@@ -6,8 +6,8 @@ public class StateMachine<T> where T : struct
 {
     public T State { get; private set; }
     public readonly List<StateMachineTransition> Transitions = new();
-    
-    public EventHandler<T> OnTransitioned { get; set; }
+
+    public SmartEventHandler<T> OnTransitioned { get; set; } = new();
 
     private readonly object Lock = new();
  
@@ -44,7 +44,7 @@ public class StateMachine<T> where T : struct
 
             State = transition.To;
         
-            OnTransitioned?.Invoke(this, State);
+            OnTransitioned.Invoke(State);
         }
         
         return Task.CompletedTask;

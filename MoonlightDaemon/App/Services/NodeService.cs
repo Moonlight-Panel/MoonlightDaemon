@@ -18,7 +18,7 @@ public class NodeService
         MoonlightService = moonlightService;
     }
 
-    public Task StartBoot()
+    public Task StartBoot() // Clears the cache boot configuration and sets a boot lock
     {
         Logger.Info("Starting remote boot");
         
@@ -35,9 +35,7 @@ public class NodeService
         Logger.Info($"Receiving {configurations.Length} server configurations");
         
         lock (BootServerConfigurations)
-        {
             BootServerConfigurations.AddRange(configurations);
-        }
         
         return Task.CompletedTask;
     }
@@ -45,6 +43,9 @@ public class NodeService
     public async Task FinishBoot()
     {
         Logger.Info("Received boot finish signal. Finalizing boot configuration");
+        
+        Logger.Info("Connecting websocket to panel");
+        await MoonlightService.ReconnectWebsocket();
         
         ServerConfiguration[] configurations;
 
@@ -62,8 +63,6 @@ public class NodeService
             await ServerService.AddFromConfiguration(serverConfiguration);
 
         await ServerService.Restore();
-        
-        await MoonlightService.ReconnectWebsocket();
 
         IsBooting = false;
     }
