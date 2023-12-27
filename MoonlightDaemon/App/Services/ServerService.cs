@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Docker.DotNet;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
@@ -16,7 +17,7 @@ public class ServerService
     private readonly ContainerMonitorService MonitorService;
     private readonly DockerClient DockerClient;
     private readonly MoonlightService MoonlightService;
-    
+
     private readonly List<Server> Servers = new();
     private readonly Dictionary<int, DateTime> ConsoleSubscribers = new();
 
@@ -92,15 +93,15 @@ public class ServerService
         stateMachine.AddTransition(ServerState.Installing, ServerState.Offline);
         stateMachine.AddTransition(ServerState.Offline, ServerState.Starting);
         stateMachine.AddTransition(ServerState.Starting, ServerState.Offline);
-        stateMachine.AddTransition(ServerState.Starting, ServerState.Running);
-        stateMachine.AddTransition(ServerState.Running, ServerState.Offline);
+        stateMachine.AddTransition(ServerState.Starting, ServerState.Online);
+        stateMachine.AddTransition(ServerState.Online, ServerState.Offline);
         stateMachine.AddTransition(ServerState.Starting, ServerState.Stopping);
-        stateMachine.AddTransition(ServerState.Running, ServerState.Stopping);
+        stateMachine.AddTransition(ServerState.Online, ServerState.Stopping);
         stateMachine.AddTransition(ServerState.Stopping, ServerState.Offline);
         stateMachine.AddTransition(ServerState.Stopping, ServerState.Join2Start);
         stateMachine.AddTransition(ServerState.Join2Start, ServerState.Offline);
         stateMachine.AddTransition(ServerState.Join2Start, ServerState.Starting);
-        
+
         stateMachine.OnTransitioned += async state =>
         {
             await MoonlightService.SendWsPacket(new ServerStateUpdate()
@@ -121,9 +122,17 @@ public class ServerService
 
         server.Console.OnNewLogMessage += async message =>
         {
+            // Handle online detection if the server is still starting
+            if (server.State.State == ServerState.Starting)
+            {
+                if (Regex.Matches(message, server.Configuration.Image.OnlineDetection).Any())
+                    await server.State.TransitionTo(ServerState.Online);
+            }
+
+
             lock (ConsoleSubscribers)
             {
-                if(!ConsoleSubscribers.ContainsKey(server.Configuration.Id))
+                if (!ConsoleSubscribers.ContainsKey(server.Configuration.Id))
                     return;
             }
 
@@ -185,14 +194,14 @@ public class ServerService
             // so we can start to restore the container
             if (container.State == "running")
             {
-                await server.State.SetState(ServerState.Running);
+                await server.State.SetState(ServerState.Online);
                 await server.Reattach();
 
                 // Notify moonlight about the restored server state
                 await MoonlightService.SendWsPacket(new ServerStateUpdate()
                 {
                     Id = server.Configuration.Id,
-                    State = ServerState.Running
+                    State = ServerState.Online
                 });
 
                 Logger.Info($"Restored server {server.Configuration.Id} and reattached stream");
@@ -200,23 +209,24 @@ public class ServerService
         }
     }
 
-    public Task Clear()
+    public Task Clear() // This function clears all servers and server events from current cache
     {
         lock (Servers)
         {
             foreach (var server in Servers)
             {
+                server.Console.Close();
                 server.Console.OnNewLogMessage.ClearSubscribers();
             }
-            
+
             Servers.Clear();
         }
-        
+
         // Dont clear subscribers here as they are needed
         // in a daemon restart and dont exist when its a clean start anyways
         // lock (ConsoleSubscribers)
         // ConsoleSubscribers.Clear();
-        
+
         return Task.CompletedTask;
     }
 
@@ -230,7 +240,8 @@ public class ServerService
                 .Where(x => (DateTime.UtcNow - x.Value).TotalMinutes < 15)
                 .Any(x => x.Key == id);
         }
-        
+
+        // Add/update console subscriber time
         lock (ConsoleSubscribers)
             ConsoleSubscribers[id] = DateTime.UtcNow;
 
@@ -238,8 +249,8 @@ public class ServerService
         if (!wasAlreadyAdded)
         {
             var server = await GetById(id);
-            
-            if(server == null)
+
+            if (server == null)
                 return;
 
             var messages = await server.Console.GetAllLogMessages();

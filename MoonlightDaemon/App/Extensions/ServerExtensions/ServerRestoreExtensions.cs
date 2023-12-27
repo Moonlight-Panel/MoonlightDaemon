@@ -1,5 +1,4 @@
 using Docker.DotNet;
-using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 
 namespace MoonlightDaemon.App.Extensions.ServerExtensions;
@@ -32,8 +31,6 @@ public static class ServerRestoreExtensions
                 await server.Console.WriteLine(line);
             
             // With ignoring empty lines to reduce packets
-            
-            Logger.Debug("Finished reading logs");
         }
         
         // Attach to console. Attach stream to console stream

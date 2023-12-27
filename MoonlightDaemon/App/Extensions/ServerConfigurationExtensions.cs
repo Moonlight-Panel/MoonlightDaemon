@@ -171,7 +171,7 @@ public static class ServerConfigurationExtensions
         // -- Logging
         container.HostConfig.LogConfig = new()
         {
-            Type = "json-file",
+            Type = "json-file", // We need to use this provider, as the GetLogs endpoint needs it
             Config = new Dictionary<string, string>()
         };
         

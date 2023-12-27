@@ -1,6 +1,5 @@
 using System.Text;
 using Docker.DotNet;
-using MoonlightDaemon.App.Extensions;
 
 namespace MoonlightDaemon.App.Helpers;
 
@@ -10,26 +9,32 @@ public class ServerConsole
 
     private readonly List<string> Logs = new();
     private MultiplexedStream? Stream;
+    private CancellationTokenSource Cancellation = new();
 
     public Task Attach(MultiplexedStream stream)
     {
+        // Replace/set stream
         Stream = stream;
+        Cancellation = new();
 
         Task.Run(async () =>
         {
             while (true)
             {
+                // Initialize buffer and try reading
                 var buffer = new byte[1024];
-                var readResult = await stream.ReadOutputAsync(buffer, 0, buffer.Length, CancellationToken.None);
+                var readResult = await stream.ReadOutputAsync(buffer, 0, buffer.Length, Cancellation.Token);
 
-                if (readResult.EOF)
+                if (readResult.EOF) // If we reached the end of file, we are done
                     return;
 
+                // Copy data to a resized buffer and continue reading
                 var finalSizedBuffer = new byte[readResult.Count];
                 Array.Copy(buffer, finalSizedBuffer, readResult.Count);
 
                 Task.Run(async () =>
                 {
+                    // Decode, parse and add all non empty lines
                     var text = Encoding.UTF8.GetString(finalSizedBuffer);
                     var lines = text.Split("\n");
 
@@ -79,12 +84,18 @@ public class ServerConsole
         }
 
         var buffer = Encoding.UTF8.GetBytes(command + "\n");
-        await Stream.WriteAsync(buffer, 0, buffer.Length, CancellationToken.None);
+        await Stream.WriteAsync(buffer, 0, buffer.Length, Cancellation.Token);
     }
 
     public Task<string[]> GetAllLogMessages()
     {
         lock (Logs)
             return Task.FromResult(Logs.ToArray());
+    }
+
+    public void Close()
+    {
+        if(!Cancellation.IsCancellationRequested)
+            Cancellation.Cancel();
     }
 }

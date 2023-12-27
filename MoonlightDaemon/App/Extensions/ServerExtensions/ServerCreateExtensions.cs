@@ -1,7 +1,6 @@
 using Docker.DotNet;
 using Docker.DotNet.Models;
 using MoonlightDaemon.App.Models;
-using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services;
 
 namespace MoonlightDaemon.App.Extensions.ServerExtensions;

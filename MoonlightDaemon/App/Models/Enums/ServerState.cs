@@ -4,7 +4,7 @@ public enum ServerState
 {
     Offline,
     Starting,
-    Running,
+    Online,
     Stopping,
     Installing,
     Join2Start
