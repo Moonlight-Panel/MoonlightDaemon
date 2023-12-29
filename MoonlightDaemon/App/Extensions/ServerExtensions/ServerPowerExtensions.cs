@@ -1,6 +1,7 @@
 using Docker.DotNet;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Enums;
+using MoonlightDaemon.App.Services;
 
 namespace MoonlightDaemon.App.Extensions.ServerExtensions;
 
@@ -15,6 +16,10 @@ public static class ServerPowerExtensions
 
             // Ensure container is here
             await server.Recreate();
+            
+            // Parse configuration files
+            var parseService = server.ServiceProvider.GetRequiredService<ParseService>();
+            await parseService.Process(server);
 
             // Start container
             var client = server.ServiceProvider.GetRequiredService<DockerClient>();

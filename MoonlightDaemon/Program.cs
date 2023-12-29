@@ -3,6 +3,7 @@ using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Helpers.LogMigrator;
+using MoonlightDaemon.App.Parsers;
 using MoonlightDaemon.App.Services;
 using MoonlightDaemon.App.Services.Monitors;
 using Serilog;
@@ -56,6 +57,7 @@ builder.Services.AddSingleton(configService);
 builder.Services.AddSingleton<ServerService>();
 builder.Services.AddSingleton<NodeService>();
 builder.Services.AddSingleton<MoonlightService>();
+builder.Services.AddSingleton<ParseService>();
 
 // Services / Monitors
 builder.Services.AddSingleton<ContainerMonitorService>();
@@ -78,6 +80,12 @@ app.MapControllers();
 // Auto start background services
 app.Services.GetRequiredService<ContainerMonitorService>();
 
+// Add default parsers
+var parseService = app.Services.GetRequiredService<ParseService>();
+
+parseService.Register<FileParser>("file");
+
+// Send boot signal
 var moonlightService = app.Services.GetRequiredService<MoonlightService>();
 
 Task.Run(async () =>

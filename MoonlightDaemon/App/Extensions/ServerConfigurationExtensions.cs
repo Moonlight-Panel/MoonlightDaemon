@@ -212,6 +212,7 @@ public static class ServerConfigurationExtensions
     public static string GetRuntimeVolumePath(this ServerConfiguration configuration) => $"/var/lib/moonlight/volumes/{configuration.Id}";
     public static string GetInstallVolumePath(this ServerConfiguration configuration) => $"/var/lib/moonlight/install/{configuration.Id}";
     
+    // Its recommended to use this method for the variables to include the dynamic environment variables like SERVER_PORT
     public static Dictionary<string, string> GetEnvironmentVariables(this ServerConfiguration configuration)
     {
         var result = new Dictionary<string, string>();
@@ -222,6 +223,15 @@ public static class ServerConfigurationExtensions
         result.Add("SERVER_MEMORY", configuration.Limits.Memory.ToString());
         //result.Add("SERVER_IP", configService.Get().Docker.HostBindIp);
         result.Add("SERVER_PORT", configuration.MainAllocation.Port.ToString());
+
+        
+        // Handle additional allocation variables
+        int i = 1;
+        foreach (var additionalAllocation in configuration.Allocations)
+        {
+            result.Add($"ML_PORT_{i}", additionalAllocation.Port.ToString());
+            i++;
+        }
 
         // Copy variables as env vars
         foreach (var variable in configuration.Variables)
