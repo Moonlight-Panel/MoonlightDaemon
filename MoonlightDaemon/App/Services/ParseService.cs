@@ -20,7 +20,7 @@ public class ParseService
 
         try
         {
-            configs = JsonConvert.DeserializeObject<ServerParseConfig[]>(server.Configuration.ParseConfigurations) ??
+            configs = JsonConvert.DeserializeObject<ServerParseConfig[]>(server.Configuration.Image.ParseConfigurations) ??
                       Array.Empty<ServerParseConfig>();
         }
         catch (JsonSerializationException e)
@@ -32,18 +32,24 @@ public class ParseService
             return;
         }
 
-        // We group the configs by the file they are trying to access to load and save the file once and
-        // not saving and loading for every config. This will reduce the io impact
-        var groupedConfigs = configs.GroupBy(x => x.File);
-
-        foreach (var groupedConfig in groupedConfigs)
-            await ProcessConfigsForFile(server, groupedConfig.Key, groupedConfig.ToArray());
+        foreach (var config in configs)
+            await ProcessConfig(server, config);
     }
 
-    private async Task ProcessConfigsForFile(Server server, string file, ServerParseConfig[] configs)
+    private async Task ProcessConfig(Server server, ServerParseConfig config)
     {
+        IParser? parser;
+        
+        // Search for parser 
+        lock (Parsers)
+            parser = Parsers.ContainsKey(config.Type) ? Parsers[config.Type] : null;
+
+        // Parse not found, stop doing anything and continue with next config
+        if (parser == null)
+            return;
+        
         // Sanitize file path to prevent access to system files
-        var cleanedPath = file;
+        var cleanedPath = config.File;
         cleanedPath = cleanedPath.TrimStart('/');
         cleanedPath = cleanedPath.Replace("..", "");
 
@@ -59,7 +65,7 @@ public class ParseService
             }
             catch (Exception e)
             {
-                Logger.Warn($"Unable to create missing config file: {file}");
+                Logger.Warn($"Unable to create missing config file: {config.File}");
                 Logger.Warn(e);
 
                 await server.Log("An error occured while processing configuration parsing");
@@ -69,51 +75,21 @@ public class ParseService
 
         var content = await File.ReadAllTextAsync(path);
 
-        foreach (var config in configs)
-            content = await ProcessConfig(server, content, config);
-
-        await File.WriteAllTextAsync(path, content);
-    }
-
-    private async Task<string> ProcessConfig(Server server, string content, ServerParseConfig config)
-    {
-        // We use this way of getting variables to ensure we have the dynamic environment variables like SERVER_PORT included
-        var environmentVariables = server.Configuration.GetEnvironmentVariables();
-        
-        if (!environmentVariables.ContainsKey(config.Variable))
-        {
-            Logger.Warn(
-                $"Unable to process configuration parsing for variable {config.Variable}. Skipping config");
-            await server.Log(
-                $"An error occured while parsing configuration files: {config.Variable} variable is missing");
-
-            return content;
-        }
-
-        IParser? parser;
-
-        // Search for parser 
-        lock (Parsers)
-            parser = Parsers.ContainsKey(config.Type) ? Parsers[config.Type] : null;
-
-        // Parse not found => next config
-        if (parser == null)
-            return content;
-
         try
         {
-            return await parser.Parse(content, config.Key, environmentVariables[config.Variable]);
+            content = await parser.Parse(content, config.Configuration, server.Configuration.GetEnvironmentVariables());
         }
         catch (Exception e)
         {
-            Logger.Warn(
-                $"An error occured while processing parser {parser.GetType().Name} for file {config.Key}");
+            Logger.Warn($"An error occured while running '{config.Type} parser for file '{config.File}' for server {server.Configuration.Id}");
             Logger.Warn(e);
 
-            return content;
+            await server.Log("An error occured while parsing configuration");
         }
-    }
 
+        await File.WriteAllTextAsync(path, content);
+    }
+    
     public Task Register<T>(string name) where T : IParser
     {
         var instance = Activator.CreateInstance<T>() as IParser;

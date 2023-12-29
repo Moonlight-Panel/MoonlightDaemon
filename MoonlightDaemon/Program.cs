@@ -84,6 +84,7 @@ app.Services.GetRequiredService<ContainerMonitorService>();
 var parseService = app.Services.GetRequiredService<ParseService>();
 
 parseService.Register<FileParser>("file");
+parseService.Register<PropertiesParser>("properties");
 
 // Send boot signal
 var moonlightService = app.Services.GetRequiredService<MoonlightService>();

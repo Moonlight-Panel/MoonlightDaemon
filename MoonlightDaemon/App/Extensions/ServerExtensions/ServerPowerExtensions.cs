@@ -20,6 +20,9 @@ public static class ServerPowerExtensions
             // Parse configuration files
             var parseService = server.ServiceProvider.GetRequiredService<ParseService>();
             await parseService.Process(server);
+            
+            // Ensure file permissions after parsing file and modifying file permissions because of it 
+            await server.EnsureRuntimeVolume(); //TODO: Reconsider where to put the chown command to reduce bash calls
 
             // Start container
             var client = server.ServiceProvider.GetRequiredService<DockerClient>();

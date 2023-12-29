@@ -4,33 +4,35 @@ namespace MoonlightDaemon.App.Parsers;
 
 public class FileParser : IParser
 {
-    public Task<string> Parse(string fileContent, string key, string value)
+    public Task<string> Parse(string fileContent, Dictionary<string, string> configuration, Dictionary<string, string> environmentVariables)
     {
-        var processedFile = "";
+        var result = "";
 
-        var hasBeenFound = false;
-        
-        foreach (var line in fileContent.Split("\n"))
+        foreach (var line in fileContent.Split("\n")) // Split into lines
         {
-            if(string.IsNullOrEmpty(line))
-                continue;
+            var lineModification = line; // Save current line in a new variable in order to modify it
 
-            var lineMod = line;
-
-            if (lineMod.StartsWith(key))
+            if (!string.IsNullOrEmpty(lineModification)) // Check if the line is empty
             {
-                hasBeenFound = true;
-                lineMod = $"{key}={value}";
+                foreach (var option in configuration) // Iterate through every configuration option available
+                {
+                    if (lineModification.StartsWith(option.Key)) // If the current line starts with the key of the current option ...
+                    {
+                        var modification = option.Value; // ... we want to save the value ...
+
+                        // ...replace every variable in this value string with the variable value ...
+                        foreach (var variable in environmentVariables)
+                            modification = modification.Replace("{{" + variable.Key + "}}", variable.Value);
+
+                        // ... and save the modification as the lineModification, in order to get saved
+                        lineModification = modification;
+                    }
+                }
             }
 
-            processedFile += $"{lineMod}\n";
+            result += lineModification + "\n";
         }
 
-        if (!hasBeenFound)
-        {
-            processedFile += $"{key}={value}\n";
-        }
-        
-        return Task.FromResult(processedFile);
+        return Task.FromResult(result);
     }
 }

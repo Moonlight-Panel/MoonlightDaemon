@@ -9,7 +9,6 @@ public class ServerConfiguration
     public ImageData Image { get; set; } = new();
     public List<AllocationData> Allocations { get; set; } = new();
     public Dictionary<string, string> Variables { get; set; } = new();
-    public string ParseConfigurations { get; set; } = "[]"; 
     
     public class LimitsData
     {
@@ -26,6 +25,7 @@ public class ServerConfiguration
         public string DockerImage { get; set; }
         public string StopCommand { get; set; }
         public string OnlineDetection { get; set; }
+        public string ParseConfigurations { get; set; } = "[]"; 
     }
     
     public class AllocationData
