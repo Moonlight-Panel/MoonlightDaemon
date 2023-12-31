@@ -1,6 +1,5 @@
 using Docker.DotNet;
 using MoonlightDaemon.App.Extensions;
-using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Helpers.LogMigrator;
 using MoonlightDaemon.App.Parsers;
@@ -58,6 +57,7 @@ builder.Services.AddSingleton<ServerService>();
 builder.Services.AddSingleton<NodeService>();
 builder.Services.AddSingleton<MoonlightService>();
 builder.Services.AddSingleton<ParseService>();
+builder.Services.AddSingleton<FtpService>();
 
 // Services / Monitors
 builder.Services.AddSingleton<ContainerMonitorService>();
@@ -86,13 +86,18 @@ var parseService = app.Services.GetRequiredService<ParseService>();
 parseService.Register<FileParser>("file");
 parseService.Register<PropertiesParser>("properties");
 
-// Send boot signal
-var moonlightService = app.Services.GetRequiredService<MoonlightService>();
-
+// Run delayed tasks
 Task.Run(async () =>
 {
     await Task.Delay(TimeSpan.FromSeconds(3));
+    
+    // Send boot signal
+    var moonlightService = app.Services.GetRequiredService<MoonlightService>();
     await moonlightService.SendBootSignal();
+    
+    // Start ftp server
+    var ftpService = app.Services.GetRequiredService<FtpService>();
+    await ftpService.Start();
 });
 
 app.Run();

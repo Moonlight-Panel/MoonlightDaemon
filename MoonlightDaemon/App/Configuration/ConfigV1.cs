@@ -6,6 +6,14 @@ public class ConfigV1
     public PathsData Paths { get; set; } = new();
     public ServerData Server { get; set; } = new();
     public RemoteData Remote { get; set; } = new();
+    public FtpData Ftp { get; set; } = new();
+    
+    public class FtpData
+    {
+        public int MaxActiveConnections { get; set; } = 0;
+        public int Port { get; set; } = 2021;
+        public int InactivityCheckInterval { get; set; } = 60;
+    }
     
     public class ServerData
     {
