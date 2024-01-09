@@ -10,11 +10,13 @@ namespace MoonlightDaemon.App.Helpers.Ftp;
 public class FtpAuthenticator : IMembershipProviderAsync
 {
     private readonly ServerService ServerService;
+    private readonly FtpService FtpService;
     private readonly HttpClient HttpClient;
 
-    public FtpAuthenticator(ConfigService configService, ServerService serverService)
+    public FtpAuthenticator(ConfigService configService, ServerService serverService, FtpService ftpService)
     {
         ServerService = serverService;
+        FtpService = ftpService;
 
         HttpClient = new()
         {
@@ -41,6 +43,13 @@ public class FtpAuthenticator : IMembershipProviderAsync
 
             var realUsername = parts[0];
             var serverId = int.Parse(parts[1]);
+            
+            // Check if user reached the connections per user limit
+            if (!await FtpService.RegisterSession(realUsername))
+            {
+                Logger.Debug($"{realUsername} triggered max connection limit");
+                return new MemberValidationResult(MemberValidationStatus.InvalidLogin);
+            }
 
             // Check if the server is actually existent on this node
             var server = await ServerService.GetById(serverId);
@@ -66,13 +75,15 @@ public class FtpAuthenticator : IMembershipProviderAsync
             // Build (weird) identity stuff
             var userClaims = new List<Claim>
             {
-                new("username", username),
+                new("username", realUsername),
                 new("serverId", serverId.ToString()),
                 new("rootPath", server.Configuration.GetRuntimeVolumePath())
             };
 
             var identity = new ClaimsIdentity(userClaims);
             var principal = new ClaimsPrincipal(identity);
+            
+            Logger.Debug($"Login: {realUsername}");
 
             return new MemberValidationResult(MemberValidationStatus.AuthenticatedUser, principal);
         }
@@ -94,8 +105,12 @@ public class FtpAuthenticator : IMembershipProviderAsync
     public async Task<MemberValidationResult> ValidateUserAsync(string username, string password,
         CancellationToken _ = new()) => await ValidateUserAsync(username, password);
 
-    public Task LogOutAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = new())
+    public async Task LogOutAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = new())
     {
-        return Task.CompletedTask;
+        var username = principal.Claims.First(x => x.Type == "username").Value;
+        
+        Logger.Debug($"Logout: {username}");
+        
+        await FtpService.UnregisterSession(username);
     }
 }

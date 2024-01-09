@@ -8,6 +8,8 @@ namespace MoonlightDaemon.App.Services;
 
 public class FtpService : IDisposable
 {
+    private readonly Dictionary<string, int> Sessions = new();
+    
     private readonly ConfigService ConfigService;
     private readonly ServerService ServerService;
 
@@ -37,13 +39,14 @@ public class FtpService : IDisposable
         // ... and add linking services (e.g. ConfigService)
         services.AddSingleton(ConfigService);
         services.AddSingleton(ServerService);
+        services.AddSingleton(this);
 
         // Configure the ftp server
         services.Configure<FtpServerOptions>(options =>
         {
             options.ServerAddress = "0.0.0.0";
             options.Port = config.Port;
-            options.MaxActiveConnections = 100;
+            options.MaxActiveConnections = config.MaxActiveConnections;
             options.ConnectionInactivityCheckInterval =
                 TimeSpan.FromSeconds(config.InactivityCheckInterval);
         });
@@ -56,6 +59,40 @@ public class FtpService : IDisposable
         await Server.StartAsync(CancellationToken.None);
         
         Logger.Info($"Ftp server listening on 0.0.0.0:{config.Port}");
+    }
+
+    public Task<bool> RegisterSession(string username)
+    {
+        var config = ConfigService.Get().Ftp;
+        
+        lock (Sessions)
+        {
+            if (Sessions.ContainsKey(username) && Sessions[username] >= config.MaxConnectionsPerUser)
+                return Task.FromResult(false);
+            
+            if (Sessions.ContainsKey(username))
+                Sessions[username] += 1;
+            else
+                Sessions.Add(username, 1);
+        }
+        
+        return Task.FromResult(true);
+    }
+
+    public Task UnregisterSession(string username)
+    {
+        lock (Sessions)
+        {
+            if (Sessions.ContainsKey(username))
+            {
+                Sessions[username] =- 1;
+
+                if (Sessions[username] < 1)
+                    Sessions.Remove(username);
+            }
+        }
+        
+        return Task.CompletedTask;
     }
 
     public async void Dispose()

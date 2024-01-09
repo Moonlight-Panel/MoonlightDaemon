@@ -13,6 +13,7 @@ public class ConfigV1
         public int MaxActiveConnections { get; set; } = 0;
         public int Port { get; set; } = 2021;
         public int InactivityCheckInterval { get; set; } = 60;
+        public int MaxConnectionsPerUser { get; set; } = 10;
     }
     
     public class ServerData
