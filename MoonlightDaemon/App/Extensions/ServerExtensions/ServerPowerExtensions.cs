@@ -1,4 +1,6 @@
 using Docker.DotNet;
+using Docker.DotNet.Models;
+using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services;
@@ -42,8 +44,10 @@ public static class ServerPowerExtensions
 
             var client = server.ServiceProvider.GetRequiredService<DockerClient>();
 
+            var containerName = $"moonlight-runtime-{server.Configuration.Id}";
+            
             var container =
-                await client.Containers.InspectContainerSafeAsync($"moonlight-runtime-{server.Configuration.Id}");
+                await client.Containers.InspectContainerSafeAsync(containerName);
 
             if (container == null)
             {
@@ -53,7 +57,28 @@ public static class ServerPowerExtensions
 
             if (container.State.Running)
             {
-                await server.Console.SendCommand(server.Configuration.Image.StopCommand);
+                var stopCmd = server.Configuration.Image.StopCommand;
+                
+                if (stopCmd.StartsWith("^"))
+                {
+                    
+                    // Remove the "^"
+                    var signal = stopCmd.Substring(1, stopCmd.Length - 1);
+                    signal = signal.ToUpper();
+
+                    // Handle ^C
+                    if (signal == "C")
+                        signal = "SIGINT";
+                    
+                    // Send signal
+                    await client.Containers.KillContainerAsync(containerName, new ContainerKillParameters()
+                    {
+                        Signal = signal
+                    });
+                }
+                else
+                    await server.Console.SendCommand(stopCmd);
+                
                 await server.State.TransitionTo(ServerState.Stopping);
                 return;
             }
@@ -61,7 +86,8 @@ public static class ServerPowerExtensions
             // This may not be called at any point of time, as the daemon should
             // automatically detected if a server is offline without this check here
             // but just to be sure, we have included it here
-            await server.State.TransitionTo(ServerState.Offline);
+            if(await server.State.CanTransitionTo(ServerState.Offline))
+                await server.State.TransitionTo(ServerState.Offline);
         });
     }
 
