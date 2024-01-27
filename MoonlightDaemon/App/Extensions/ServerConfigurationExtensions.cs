@@ -219,7 +219,7 @@ public static class ServerConfigurationExtensions
 
         // Default environment variables
         //TODO: Add timezone, add server ip
-        result.Add("STARTUP", configuration.StartupCommand);
+        result.Add("STARTUP", configuration.Image.StartupCommand);
         result.Add("SERVER_MEMORY", configuration.Limits.Memory.ToString());
         //result.Add("SERVER_IP", configService.Get().Docker.HostBindIp);
         result.Add("SERVER_PORT", configuration.MainAllocation.Port.ToString());

@@ -3,11 +3,11 @@ namespace MoonlightDaemon.App.Models.Configuration;
 public class ServerConfiguration
 {
     public int Id { get; set; }
-    public string StartupCommand { get; set; } = "";
+
+    public LimitsData Limits { get; set; }
+    public ImageData Image { get; set; }
     public AllocationData MainAllocation { get; set; }
-    public LimitsData Limits { get; set; } = new();
-    public ImageData Image { get; set; } = new();
-    public List<AllocationData> Allocations { get; set; } = new();
+    public List<AllocationData> Allocations { get; set; }
     public Dictionary<string, string> Variables { get; set; } = new();
     
     public class LimitsData
@@ -15,21 +15,24 @@ public class ServerConfiguration
         public int Cpu { get; set; }
         public int Memory { get; set; }
         public int Disk { get; set; }
-        public bool DisableSwap { get; set; }
+        public bool DisableSwap { get; set; } = false;
         public int PidsLimit { get; set; } = 100;
-        public bool EnableOomKill { get; set; }
+        public bool EnableOomKill { get; set; } = false;
     }
     
     public class ImageData
     {
         public string DockerImage { get; set; }
+        public bool PullDockerImage { get; set; }
+        public string StartupCommand { get; set; }
         public string StopCommand { get; set; }
         public string OnlineDetection { get; set; }
-        public string ParseConfigurations { get; set; } = "[]"; 
+        public string ParseConfigurations { get; set; }
     }
-    
+
     public class AllocationData
     {
+        public string IpAddress { get; set; }
         public int Port { get; set; }
     }
 }

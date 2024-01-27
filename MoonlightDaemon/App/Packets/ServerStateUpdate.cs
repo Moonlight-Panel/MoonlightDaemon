@@ -1,6 +1,6 @@
 using MoonlightDaemon.App.Models.Enums;
 
-namespace MoonlightDaemon.App.Packets.Server;
+namespace MoonlightDaemon.App.Packets;
 
 public class ServerStateUpdate
 {

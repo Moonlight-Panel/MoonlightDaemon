@@ -6,7 +6,7 @@ using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Models.Enums;
-using MoonlightDaemon.App.Packets.Server;
+using MoonlightDaemon.App.Packets;
 using MoonlightDaemon.App.Services.Monitors;
 
 namespace MoonlightDaemon.App.Services;
@@ -16,7 +16,6 @@ public class ServerService
     private readonly IServiceProvider ServiceProvider;
     private readonly ContainerMonitorService MonitorService;
     private readonly DockerClient DockerClient;
-    private readonly MoonlightService MoonlightService;
 
     private readonly List<Server> Servers = new();
     private readonly Dictionary<int, DateTime> ConsoleSubscribers = new();
@@ -24,11 +23,9 @@ public class ServerService
     public ServerService(
         ContainerMonitorService monitorService,
         DockerClient dockerClient,
-        IServiceProvider serviceProvider,
-        MoonlightService moonlightService)
+        IServiceProvider serviceProvider)
     {
         ServiceProvider = serviceProvider;
-        MoonlightService = moonlightService;
         MonitorService = monitorService;
         DockerClient = dockerClient;
 
@@ -104,11 +101,11 @@ public class ServerService
 
         stateMachine.OnTransitioned += async state =>
         {
-            await MoonlightService.SendWsPacket(new ServerStateUpdate()
-            {
-                Id = configuration.Id,
-                State = state
-            });
+            /*await BroadcastService.Broadcast(new ServerStateUpdate()
+               {
+                   Id = configuration.Id,
+                   State = state
+               });*/
         };
 
         var server = new Server()
@@ -136,11 +133,11 @@ public class ServerService
                     return;
             }
 
-            await MoonlightService.SendWsPacket(new ServerConsoleMessage()
-            {
-                Id = server.Configuration.Id,
-                Message = message
-            });
+            /*await BroadcastService.Broadcast(new ServerConsoleMessage()
+               {
+                   Id = server.Configuration.Id,
+                   Message = message
+               });*/
         };
 
         lock (Servers)
@@ -198,11 +195,11 @@ public class ServerService
                 await server.Reattach();
 
                 // Notify moonlight about the restored server state
-                await MoonlightService.SendWsPacket(new ServerStateUpdate()
-                {
-                    Id = server.Configuration.Id,
-                    State = ServerState.Online
-                });
+                /*await BroadcastService.Broadcast(new ServerStateUpdate()
+                   {
+                       Id = server.Configuration.Id,
+                       State = ServerState.Online
+                   });*/
 
                 Logger.Info($"Restored server {server.Configuration.Id} and reattached stream");
             }
@@ -257,11 +254,13 @@ public class ServerService
 
             foreach (var message in messages)
             {
-                await MoonlightService.SendWsPacket(new ServerConsoleMessage()
-                {
-                    Id = id,
-                    Message = message
-                });
+                /*
+                 * await BroadcastService.Broadcast(new ServerConsoleMessage()
+                   {
+                       Id = id,
+                       Message = message
+                   });
+                 */
             }
         }
     }

@@ -1,4 +1,4 @@
-namespace MoonlightDaemon.App.Packets.Server;
+namespace MoonlightDaemon.App.Packets;
 
 public class ServerConsoleMessage
 {

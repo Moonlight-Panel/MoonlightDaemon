@@ -27,9 +27,14 @@ public static class ServerCreateExtensions
             await client.Containers.RemoveContainerAsync(containerName, new());
         }
 
-        await server.Log("Downloading docker image");
-        await server.EnsureImageExists(server.Configuration.Image.DockerImage);
-        await server.Log("Downloaded docker image");
+        if (server.Configuration.Image.PullDockerImage)
+        {
+            await server.Log("Downloading docker image");
+            await server.EnsureImageExists(server.Configuration.Image.DockerImage);
+            await server.Log("Downloaded docker image");
+        }
+        else
+            await server.Log("Skipping docker image download");
 
         var configService = server.ServiceProvider.GetRequiredService<ConfigService>();
         var container = server.Configuration.ToRuntimeContainerParameters(configService);

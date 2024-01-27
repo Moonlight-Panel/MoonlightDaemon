@@ -1,4 +1,5 @@
 using Docker.DotNet;
+using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Helpers.LogMigrator;
@@ -54,10 +55,10 @@ builder.Services.AddSingleton<VolumeHelper>();
 // Services
 builder.Services.AddSingleton(configService);
 builder.Services.AddSingleton<ServerService>();
-builder.Services.AddSingleton<NodeService>();
 builder.Services.AddSingleton<MoonlightService>();
 builder.Services.AddSingleton<ParseService>();
 builder.Services.AddSingleton<FtpService>();
+builder.Services.AddSingleton<BootService>();
 
 // Services / Monitors
 builder.Services.AddSingleton<ContainerMonitorService>();
@@ -69,6 +70,14 @@ builder.Services.AddSingleton(
             configService.Get().Docker.Socket
         )
     ).CreateClient()
+);
+
+// Http API Client
+builder.Services.AddSingleton(
+    new HttpApiClient<MoonlightException>(
+        configService.Get().Remote.Url,
+        configService.Get().Remote.Token
+    )
 );
 
 var app = builder.Build();
@@ -90,11 +99,11 @@ parseService.Register<PropertiesParser>("properties");
 Task.Run(async () =>
 {
     await Task.Delay(TimeSpan.FromSeconds(3));
-    
-    // Send boot signal
-    var moonlightService = app.Services.GetRequiredService<MoonlightService>();
-    await moonlightService.SendBootSignal();
-    
+
+    // Boot
+    var bootService = app.Services.GetRequiredService<BootService>();
+    await bootService.Boot();
+
     // Start ftp server
     var ftpService = app.Services.GetRequiredService<FtpService>();
     await ftpService.Start();
