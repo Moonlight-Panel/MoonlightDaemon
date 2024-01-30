@@ -34,7 +34,7 @@ public class MoonlightService
         {
             var configuration =
                 await Client.SendHandled<ServerInstallConfiguration, MoonlightException>(HttpMethod.Get,
-                    $"install/{server.Configuration.Id}");
+                    $"{server.Configuration.Id}/install");
 
             return configuration;
         }

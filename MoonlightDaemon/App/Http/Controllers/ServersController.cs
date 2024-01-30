@@ -38,15 +38,17 @@ public class ServersController : Controller
         return Ok();
     }
 
-    [HttpPost("{id:Int}/power/{action}")]
-    public async Task<ActionResult> Power(int id, string action)
+    // IMPORTANT: "action" is reserved keyword in asp.net
+    // no we need to call the parameter "actionEnum"
+    [HttpPost("{id:int}/power/{actionEnum:alpha}")]
+    public async Task<ActionResult> Power(int id, string actionEnum)
     {
         var server = await ServerService.GetById(id);
 
         if (server == null)
             return NotFound("No server with this id found");
 
-        if (!Enum.TryParse(action, true, out PowerAction powerAction))
+        if (!Enum.TryParse(actionEnum, true, out PowerAction powerAction))
             return BadRequest("Invalid power action");
         
         switch (powerAction)
@@ -64,7 +66,7 @@ public class ServersController : Controller
                 await server.Stop();
                 break;
         }
-
+        
         return Ok();
     }
 

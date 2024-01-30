@@ -37,11 +37,8 @@ public static class ServerInstallExtensions
                 await server.Log("Removing existing container");
                 await client.Containers.RemoveContainerAsync(containerName, new());
             }
-
-            await server.Log("Downloading docker image");
-            await server.EnsureImageExists("moonlightpanel/images:installerjava");
-            await server.Log("Downloaded docker image");
-
+            
+            // Fetch install configuration from panel for the server
             await server.Log("Fetching install configuration");
             var moonlightService = server.ServiceProvider.GetRequiredService<MoonlightService>();
             var configuration = await moonlightService.GetInstallConfiguration(server);
@@ -52,15 +49,23 @@ public static class ServerInstallExtensions
                 return;
             }
             
+            // Ensure the install docker image exists
+            await server.Log("Downloading docker image");
+            await server.EnsureImageExists(configuration.DockerImage);
+            await server.Log("Downloaded docker image");
+            
+            // Write the install script to file
             var installScriptPath = PathBuilder.File(server.Configuration.GetInstallVolumePath(), "install.sh");
             await File.WriteAllTextAsync(installScriptPath, configuration.Script);
 
+            // Build the container params
             var configService = server.ServiceProvider.GetRequiredService<ConfigService>();
             var container =
                 server.Configuration.ToInstallContainerParameters(configService, configuration.DockerImage);
 
             container.Cmd = $"{configuration.Shell} /mnt/install/install.sh".Split(" ");
 
+            // Create the container
             await server.Log("Creating container");
             await client.Containers.CreateContainerAsync(container);
 
