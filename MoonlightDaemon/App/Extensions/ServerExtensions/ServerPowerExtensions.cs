@@ -15,6 +15,17 @@ public static class ServerPowerExtensions
         {
             if (!await server.State.CanTransitionTo(ServerState.Starting))
                 return;
+            
+            // Get latest data from panel
+            await server.Log("Fetching server data");
+
+            var moonlightService = server.ServiceProvider.GetRequiredService<MoonlightService>();
+            var configuration = await moonlightService.GetConfiguration(server);
+
+            if (configuration != null)
+                server.Configuration = configuration;
+            else
+                await server.Log("Failed to fetch server data. Trying to start anyways");
 
             // Ensure container is here
             await server.Recreate();

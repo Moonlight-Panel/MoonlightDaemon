@@ -16,6 +16,7 @@ public class ServerService
     private readonly IServiceProvider ServiceProvider;
     private readonly ContainerMonitorService MonitorService;
     private readonly DockerClient DockerClient;
+    private readonly MoonlightService MoonlightService;
 
     private readonly List<Server> Servers = new();
     private readonly Dictionary<int, DateTime> ConsoleSubscribers = new();
@@ -23,9 +24,10 @@ public class ServerService
     public ServerService(
         ContainerMonitorService monitorService,
         DockerClient dockerClient,
-        IServiceProvider serviceProvider)
+        IServiceProvider serviceProvider, MoonlightService moonlightService)
     {
         ServiceProvider = serviceProvider;
+        MoonlightService = moonlightService;
         MonitorService = monitorService;
         DockerClient = dockerClient;
 
@@ -101,11 +103,11 @@ public class ServerService
 
         stateMachine.OnTransitioned += async state =>
         {
-            /*await BroadcastService.Broadcast(new ServerStateUpdate()
-               {
-                   Id = configuration.Id,
-                   State = state
-               });*/
+            await MoonlightService.SendPacket(new ServerStateUpdate()
+            {
+                Id = configuration.Id,
+                State = state
+            });
         };
 
         var server = new Server()
@@ -133,11 +135,11 @@ public class ServerService
                     return;
             }
 
-            /*await BroadcastService.Broadcast(new ServerConsoleMessage()
-               {
-                   Id = server.Configuration.Id,
-                   Message = message
-               });*/
+            await MoonlightService.SendPacket(new ServerOutputMessage()
+            {
+                Id = server.Configuration.Id,
+                Message = message
+            });
         };
 
         lock (Servers)
@@ -195,11 +197,11 @@ public class ServerService
                 await server.Reattach();
 
                 // Notify moonlight about the restored server state
-                /*await BroadcastService.Broadcast(new ServerStateUpdate()
-                   {
-                       Id = server.Configuration.Id,
-                       State = ServerState.Online
-                   });*/
+                await MoonlightService.SendPacket(new ServerStateUpdate()
+                {
+                    Id = server.Configuration.Id,
+                    State = ServerState.Online
+                });
 
                 Logger.Info($"Restored server {server.Configuration.Id} and reattached stream");
             }
@@ -254,13 +256,11 @@ public class ServerService
 
             foreach (var message in messages)
             {
-                /*
-                 * await BroadcastService.Broadcast(new ServerConsoleMessage()
-                   {
-                       Id = id,
-                       Message = message
-                   });
-                 */
+                await MoonlightService.SendPacket(new ServerOutputMessage()
+                {
+                    Id = id,
+                    Message = message
+                });
             }
         }
     }
