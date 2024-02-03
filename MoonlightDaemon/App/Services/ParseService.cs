@@ -1,3 +1,5 @@
+using MoonCore.Attributes;
+using MoonCore.Helpers;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Helpers;
@@ -8,6 +10,7 @@ using Newtonsoft.Json;
 
 namespace MoonlightDaemon.App.Services;
 
+[Singleton]
 public class ParseService
 {
     public readonly Dictionary<string, IParser> Parsers = new();

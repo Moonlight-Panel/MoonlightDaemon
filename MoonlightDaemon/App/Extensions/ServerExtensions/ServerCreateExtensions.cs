@@ -1,5 +1,7 @@
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using MoonCore.Services;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Services;
 
@@ -36,7 +38,7 @@ public static class ServerCreateExtensions
         else
             await server.Log("Skipping docker image download");
 
-        var configService = server.ServiceProvider.GetRequiredService<ConfigService>();
+        var configService = server.ServiceProvider.GetRequiredService<ConfigService<ConfigV1>>();
         var container = server.Configuration.ToRuntimeContainerParameters(configService);
 
         await server.Log("Creating container");

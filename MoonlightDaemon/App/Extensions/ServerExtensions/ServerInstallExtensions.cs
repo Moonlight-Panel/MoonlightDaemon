@@ -1,4 +1,7 @@
 using Docker.DotNet;
+using MoonCore.Helpers;
+using MoonCore.Services;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Enums;
@@ -59,7 +62,7 @@ public static class ServerInstallExtensions
             await File.WriteAllTextAsync(installScriptPath, configuration.Script);
 
             // Build the container params
-            var configService = server.ServiceProvider.GetRequiredService<ConfigService>();
+            var configService = server.ServiceProvider.GetRequiredService<ConfigService<ConfigV1>>();
             var container =
                 server.Configuration.ToInstallContainerParameters(configService, configuration.DockerImage);
 

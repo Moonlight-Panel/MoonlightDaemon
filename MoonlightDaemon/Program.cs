@@ -1,8 +1,11 @@
 using Docker.DotNet;
+using MoonCore.Helpers;
+using MoonCore.Extensions;  
+using MoonCore.Services;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Helpers;
-using MoonlightDaemon.App.Helpers.LogMigrator;
 using MoonlightDaemon.App.Parsers;
 using MoonlightDaemon.App.Services;
 using MoonlightDaemon.App.Services.Monitors;
@@ -11,36 +14,18 @@ using Serilog;
 // Build app
 var builder = WebApplication.CreateBuilder(args);
 
-var configService = new ConfigService();
+var configService = new ConfigService<ConfigV1>("/etc/moonlight/config.json");
 
-// Setup loggers
+// Setup logger
 
-#region Setup logging
+Logger.Setup(logInConsole: true, logInFile: true, logPath: configService.Get().Paths.Log, isDebug: args.Contains("--debug"));
 
-var logConfig = new LoggerConfiguration();
-
-logConfig = logConfig.Enrich.FromLogContext()
-    .WriteTo.File(configService.Get().Paths.Log)
-    .WriteTo.Console(
-        outputTemplate:
-        "{Timestamp:HH:mm:ss} [{Level:u3}] {SourceContext} {Message:lj}{NewLine}{Exception}");
-
-if (builder.Environment.IsDevelopment() || args.Contains("--debug"))
-    logConfig = logConfig.MinimumLevel.Debug();
-else
-    logConfig = logConfig.MinimumLevel.Information();
-
-Log.Logger = logConfig.CreateLogger();
-
-builder.Logging.ClearProviders();
-builder.Logging.AddProvider(new LogMigrateProvider());
+builder.Logging.MigrateToMoonCore();
 
 var config =
     new ConfigurationBuilder().AddJsonString(
         "{\"LogLevel\":{\"Default\":\"Information\",\"Microsoft.AspNetCore\":\"Warning\"}}");
 builder.Logging.AddConfiguration(config.Build());
-
-#endregion
 
 //
 Logger.Info("Starting MoonlightDaemon v2");
@@ -48,17 +33,8 @@ Logger.Info("Starting MoonlightDaemon v2");
 // Configure kestrel
 builder.Services.AddControllers();
 
-// Helpers
-builder.Services.AddSingleton<ShellHelper>();
-builder.Services.AddSingleton<VolumeHelper>();
-
 // Services
 builder.Services.AddSingleton(configService);
-builder.Services.AddSingleton<ServerService>();
-builder.Services.AddSingleton<MoonlightService>();
-builder.Services.AddSingleton<ParseService>();
-builder.Services.AddSingleton<FtpService>();
-builder.Services.AddSingleton<BootService>();
 
 // Services / Monitors
 builder.Services.AddSingleton<ContainerMonitorService>();

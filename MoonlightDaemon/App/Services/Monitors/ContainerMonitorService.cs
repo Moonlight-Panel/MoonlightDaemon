@@ -1,27 +1,27 @@
 using Docker.DotNet;
 using Docker.DotNet.Models;
-using MoonlightDaemon.App.Extensions;
-using MoonlightDaemon.App.Helpers;
+using MoonCore.Helpers;
+using MoonCore.Services;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Models.Events;
+using BackgroundService = MoonCore.Abstractions.BackgroundService;
 
 namespace MoonlightDaemon.App.Services.Monitors;
 
-public class ContainerMonitorService
+public class ContainerMonitorService : BackgroundService
 {
     public SmartEventHandler<ContainerMonitorEvent> OnContainerEvent { get; set; } = new();
     
     private readonly DockerClient Client;
 
-    public ContainerMonitorService(ConfigService configService)
+    public ContainerMonitorService(ConfigService<ConfigV1> configService)
     {
         Client = new DockerClientConfiguration(
                 new Uri(configService.Get().Docker.Socket))
             .CreateClient();
-
-        Task.Run(Work);
     }
 
-    public async Task Work()
+    public override async Task Run()
     {
         while (true)
         {
@@ -43,7 +43,6 @@ public class ContainerMonitorService
             }
         }
     }
-
     private async void Handler(Message message)
     {
         if(message.Type != "container")
@@ -63,4 +62,5 @@ public class ContainerMonitorService
             Logger.Warn(e);
         }
     }
+
 }

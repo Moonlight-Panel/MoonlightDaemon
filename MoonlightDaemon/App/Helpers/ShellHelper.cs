@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics;
+using MoonCore.Attributes;
 using MoonlightDaemon.App.Exceptions;
 
 namespace MoonlightDaemon.App.Helpers;
 
+[Singleton]
 public class ShellHelper
 {
     public async Task<string> ExecuteCommand(string command, bool ignoreErrors = false)

@@ -1,5 +1,9 @@
 using System.Net.Sockets;
 using System.Net.WebSockets;
+using MoonCore.Attributes;
+using MoonCore.Helpers;
+using MoonCore.Services;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Helpers;
@@ -10,10 +14,11 @@ using Newtonsoft.Json;
 
 namespace MoonlightDaemon.App.Services;
 
+[Singleton]
 // This class is for interacting with the panel
 public class MoonlightService
 {
-    private readonly ConfigService ConfigService;
+    private readonly ConfigService<ConfigV1> ConfigService;
     private readonly IServiceProvider ServiceProvider;
     private readonly HttpClient Client;
     
@@ -21,7 +26,7 @@ public class MoonlightService
     private ClientWebSocket? ClientWebSocket;
     private WsPacketConnection? WsPacketConnection;
 
-    public MoonlightService(ConfigService configService, IServiceProvider serviceProvider)
+    public MoonlightService(ConfigService<ConfigV1> configService, IServiceProvider serviceProvider)
     {
         ConfigService = configService;
         ServiceProvider = serviceProvider;

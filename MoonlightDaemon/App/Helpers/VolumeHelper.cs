@@ -1,5 +1,8 @@
+using MoonCore.Attributes;
+
 namespace MoonlightDaemon.App.Helpers;
 
+[Singleton]
 public class VolumeHelper
 {
     private readonly ShellHelper ShellHelper;

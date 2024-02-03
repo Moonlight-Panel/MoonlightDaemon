@@ -1,20 +1,25 @@
 using System.Net.WebSockets;
+using MoonCore.Attributes;
+using MoonCore.Helpers;
+using MoonCore.Services;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models.Configuration;
 
 namespace MoonlightDaemon.App.Services;
 
+[Singleton]
 public class BootService
 {
     private readonly HttpApiClient<MoonlightException> ApiClient;
     private readonly ServerService ServerService;
-    private readonly ConfigService ConfigService;
+    private readonly ConfigService<ConfigV1> ConfigService;
 
     public BootService(
         HttpApiClient<MoonlightException> apiClient,
         ServerService serverService,
-        ConfigService configService)
+        ConfigService<ConfigV1> configService)
     {
         ApiClient = apiClient;
         ServerService = serverService;

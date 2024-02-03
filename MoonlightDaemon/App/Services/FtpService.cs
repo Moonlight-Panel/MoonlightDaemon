@@ -1,21 +1,26 @@
 using FubarDev.FtpServer;
 using FubarDev.FtpServer.AccountManagement;
 using FubarDev.FtpServer.FileSystem;
+using MoonCore.Attributes;
+using MoonCore.Helpers;
+using MoonCore.Services;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Helpers.Ftp;
 
 namespace MoonlightDaemon.App.Services;
 
+[Singleton]
 public class FtpService : IDisposable
 {
     private readonly Dictionary<string, int> Sessions = new();
     
-    private readonly ConfigService ConfigService;
+    private readonly ConfigService<ConfigV1> ConfigService;
     private readonly ServerService ServerService;
 
     private IFtpServerHost Server;
 
-    public FtpService(ConfigService configService, ServerService serverService)
+    public FtpService(ConfigService<ConfigV1> configService, ServerService serverService)
     {
         ConfigService = configService;
         ServerService = serverService;

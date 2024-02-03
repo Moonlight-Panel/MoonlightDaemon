@@ -1,6 +1,9 @@
 using System.Security.Claims;
 using FubarDev.FtpServer.AccountManagement;
+using MoonCore.Helpers;
+using MoonCore.Services;
 using MoonlightDaemon.App.Api.Moonlight.Requests.Ftp;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Services;
@@ -13,7 +16,7 @@ public class FtpAuthenticator : IMembershipProviderAsync
     private readonly FtpService FtpService;
     private readonly HttpClient HttpClient;
 
-    public FtpAuthenticator(ConfigService configService, ServerService serverService, FtpService ftpService)
+    public FtpAuthenticator(ConfigService<ConfigV1> configService, ServerService serverService, FtpService ftpService)
     {
         ServerService = serverService;
         FtpService = ftpService;

@@ -1,4 +1,5 @@
-﻿using MoonlightDaemon.App.Exceptions;
+﻿using MoonCore.Helpers;
+using MoonlightDaemon.App.Exceptions;
 
 namespace MoonlightDaemon.App.Helpers;
 

@@ -1,4 +1,6 @@
 using Docker.DotNet.Models;
+using MoonCore.Services;
+using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Services;
@@ -7,7 +9,7 @@ namespace MoonlightDaemon.App.Extensions;
 
 public static class ServerConfigurationExtensions
 {
-    public static CreateContainerParameters ToRuntimeContainerParameters(this ServerConfiguration configuration, ConfigService configService)
+    public static CreateContainerParameters ToRuntimeContainerParameters(this ServerConfiguration configuration, ConfigService<ConfigV1> configService)
     {
         var container = new CreateContainerParameters();
         
@@ -55,7 +57,7 @@ public static class ServerConfigurationExtensions
         return container;
     }
     
-    public static CreateContainerParameters ToInstallContainerParameters(this ServerConfiguration configuration, ConfigService configService, string image)
+    public static CreateContainerParameters ToInstallContainerParameters(this ServerConfiguration configuration, ConfigService<ConfigV1> configService, string image)
     {
         var container = new CreateContainerParameters();
         
@@ -104,7 +106,7 @@ public static class ServerConfigurationExtensions
         return container;
     }
 
-    private static void ApplySharedConfiguration(CreateContainerParameters container, ServerConfiguration configuration, ConfigService configService)
+    private static void ApplySharedConfiguration(CreateContainerParameters container, ServerConfiguration configuration, ConfigService<ConfigV1> configService)
     {
         var config = configService.Get();
         
