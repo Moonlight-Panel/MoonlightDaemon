@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Helpers;
+using MoonlightDaemon.App.Http.Requests;
 using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services;
@@ -79,6 +80,20 @@ public class ServersController : Controller
             return NotFound("No server with this id found");
 
         await ServerService.SubscribeToConsole(id);
+
+        return Ok();
+    }
+
+    [HttpPost("{id:int}/command")]
+    public async Task<ActionResult> Command(int id, [FromBody] EnterCommand command)
+    {
+        var server = await ServerService.GetById(id);
+
+        if (server == null)
+            return NotFound("No server with this id found");
+        
+        if(server.State.State != ServerState.Offline && server.State.State != ServerState.Join2Start)
+            await server.Console.SendCommand(command.Command);
 
         return Ok();
     }
