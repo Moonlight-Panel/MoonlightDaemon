@@ -1,5 +1,6 @@
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using MoonCore.Attributes;
 using MoonCore.Helpers;
 using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
@@ -8,6 +9,7 @@ using BackgroundService = MoonCore.Abstractions.BackgroundService;
 
 namespace MoonlightDaemon.App.Services.Monitors;
 
+[BackgroundService]
 public class ContainerMonitorService : BackgroundService
 {
     public SmartEventHandler<ContainerMonitorEvent> OnContainerEvent { get; set; } = new();

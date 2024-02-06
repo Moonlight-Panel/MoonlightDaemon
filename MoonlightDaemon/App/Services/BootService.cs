@@ -91,7 +91,7 @@ public class BootService
 
             await ServerService.AddFromConfiguration(configuration);
             
-            Logger.Info($"Loaded server {configuration.Id} [{i}/{amount}]");
+            Logger.Info($"Loaded server {configuration.Id} [{i + 1}/{amount}]");
         }
 
         Logger.Info("Fetched servers. Closing websocket connection");

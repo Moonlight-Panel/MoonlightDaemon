@@ -35,9 +35,7 @@ builder.Services.AddControllers();
 
 // Services
 builder.Services.AddSingleton(configService);
-
-// Services / Monitors
-builder.Services.AddSingleton<ContainerMonitorService>();
+builder.Services.ConstructMoonCoreDi<Program>();
 
 // Docker Client
 builder.Services.AddSingleton(
@@ -62,7 +60,7 @@ app.UseRouting();
 app.MapControllers();
 
 // Auto start background services
-app.Services.GetRequiredService<ContainerMonitorService>();
+app.Services.StartBackgroundServices<Program>();
 
 // Add default parsers
 var parseService = app.Services.GetRequiredService<ParseService>();
