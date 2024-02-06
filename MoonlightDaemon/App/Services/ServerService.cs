@@ -211,24 +211,30 @@ public class ServerService
         }
     }
 
-    public Task Clear() // This function clears all servers and server events from current cache
+    public async Task Clear() // This function clears all servers and server events from current cache
     {
-        lock (Servers)
-        {
-            foreach (var server in Servers)
-            {
-                server.Console.Close();
-                server.Console.OnNewLogMessage.ClearSubscribers();
-            }
+        Server[] servers;
 
-            Servers.Clear();
-        }
+        lock (Servers) // Create a copy from the server cache
+            servers = Servers.ToArray();
+
+        foreach (var server in servers)
+            await ClearServer(server);
 
         // Dont clear subscribers here as they are needed
         // in a daemon restart and dont exist when its a clean start anyways
         // lock (ConsoleSubscribers)
         // ConsoleSubscribers.Clear();
+    }
 
+    public Task ClearServer(Server server) // Clear a specific server from the cache
+    {
+        server.Console.Close();
+        server.Console.OnNewLogMessage.ClearSubscribers();
+
+        lock (Servers)
+            Servers.Remove(server);
+        
         return Task.CompletedTask;
     }
 

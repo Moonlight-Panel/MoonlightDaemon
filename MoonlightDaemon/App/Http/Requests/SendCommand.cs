@@ -1,6 +1,6 @@
 namespace MoonlightDaemon.App.Http.Requests;
 
-public class EnterCommand
+public class SendCommand
 {
     public string Command { get; set; }
 }

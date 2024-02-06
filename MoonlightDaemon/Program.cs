@@ -1,6 +1,7 @@
+using System.Net.Sockets;
 using Docker.DotNet;
 using MoonCore.Helpers;
-using MoonCore.Extensions;  
+using MoonCore.Extensions;
 using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
@@ -17,9 +18,8 @@ var builder = WebApplication.CreateBuilder(args);
 var configService = new ConfigService<ConfigV1>("/etc/moonlight/config.json");
 
 // Setup logger
-
-Logger.Setup(logInConsole: true, logInFile: true, logPath: configService.Get().Paths.Log, isDebug: args.Contains("--debug"));
-
+Logger.Setup(logInConsole: true, logInFile: true, logPath: configService.Get().Paths.Log,
+    isDebug: args.Contains("--debug"));
 builder.Logging.MigrateToMoonCore();
 
 var config =

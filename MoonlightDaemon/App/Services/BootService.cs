@@ -1,10 +1,10 @@
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using MoonCore.Attributes;
 using MoonCore.Helpers;
 using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
-using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models.Configuration;
 
 namespace MoonlightDaemon.App.Services;
@@ -33,6 +33,18 @@ public class BootService
             await Start();
             await FetchServers();
             await Finish();
+        }
+        catch (HttpRequestException e)
+        {
+            if (e.InnerException is SocketException socketException)
+                Logger.Warn($"Unable to reach the panel in order to start booting: {socketException.Message}");
+            else
+            {
+                Logger.Warn("An unknown error occured while booting");
+                Logger.Warn(e);
+
+                throw;
+            }
         }
         catch (Exception e)
         {

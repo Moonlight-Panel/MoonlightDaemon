@@ -61,11 +61,10 @@ public class FtpAuthenticator : IMembershipProviderAsync
                 return new MemberValidationResult(MemberValidationStatus.InvalidLogin);
 
             // Build login model
-            var loginData = new Login()
+            var loginData = new FtpLogin()
             {
                 Password = password,
                 Username = realUsername,
-                IpAddress = "N/A",
                 ServerId = serverId
             };
 

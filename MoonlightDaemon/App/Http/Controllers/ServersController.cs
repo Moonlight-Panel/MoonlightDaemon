@@ -85,7 +85,7 @@ public class ServersController : Controller
     }
 
     [HttpPost("{id:int}/command")]
-    public async Task<ActionResult> Command(int id, [FromBody] EnterCommand command)
+    public async Task<ActionResult> Command(int id, [FromBody] SendCommand command)
     {
         var server = await ServerService.GetById(id);
 
@@ -95,6 +95,20 @@ public class ServersController : Controller
         if(server.State.State != ServerState.Offline && server.State.State != ServerState.Join2Start)
             await server.Console.SendCommand(command.Command);
 
+        return Ok();
+    }
+    
+    [HttpDelete("{id:int}")]
+    public async Task<ActionResult> Delete(int id)
+    {
+        var server = await ServerService.GetById(id);
+
+        if (server == null)
+            return NotFound("No server with this id found");
+
+        await server.Delete();
+        await ServerService.ClearServer(server);
+        
         return Ok();
     }
 }
