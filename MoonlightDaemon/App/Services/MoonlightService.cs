@@ -92,7 +92,15 @@ public class MoonlightService
         if (ClientWebSocket == null || WsPacketConnection == null || ClientWebSocket.State != WebSocketState.Open)
             await ReconnectWs();
 
-        await WsPacketConnection!.Send(data);
+        try
+        {
+            await WsPacketConnection!.Send(data);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn("An unhandled error occured while sending packet to moonlight");
+            Logger.Warn(e);
+        }
     }
 
     private async Task ReconnectWs()
