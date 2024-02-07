@@ -118,12 +118,18 @@ public static class ServerConfigurationExtensions
         container.AttachStdout = true;
         container.OpenStdin = true;
         
+        /*
+         * Unused, as we apply variables in the runtime/install specifics methods
+         * 
+        
         // - Environment
         container.Env = new List<string>();
         foreach (var variable in configuration.Variables)
         {
             container.Env.Add($"{variable.Key}={variable.Value}");
         }
+        
+        */
         
         // - Host config
         container.HostConfig = new HostConfig();
