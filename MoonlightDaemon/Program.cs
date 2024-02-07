@@ -1,16 +1,15 @@
-using System.Net.Sockets;
 using Docker.DotNet;
 using MoonCore.Helpers;
 using MoonCore.Extensions;
 using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
-using MoonlightDaemon.App.Extensions;
-using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Parsers;
 using MoonlightDaemon.App.Services;
-using MoonlightDaemon.App.Services.Monitors;
-using Serilog;
+
+Directory.CreateDirectory("/etc/moonlight");
+Directory.CreateDirectory("/var/lib/moonlight");
+Directory.CreateDirectory("/var/lib/moonlight/volumes");
 
 // Build app
 var builder = WebApplication.CreateBuilder(args);
