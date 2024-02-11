@@ -103,7 +103,17 @@ public class MoonlightService
     public async Task ReconnectWs()
     {
         if (WsPacketConnection != null)
-            await WsPacketConnection.Close();
+        {
+            try
+            {
+                await WsPacketConnection.Close();
+            }
+            catch (Exception)
+            {
+                // We can ignore exceptions here, as they will occur often when moonlight restarts
+                // and the daemon tries to close the connections cleanly */ }
+            }
+        }
 
         var remoteConfig = ConfigService.Get().Remote;
 
