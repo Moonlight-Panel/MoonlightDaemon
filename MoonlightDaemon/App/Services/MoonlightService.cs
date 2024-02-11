@@ -23,8 +23,8 @@ public class MoonlightService
     private readonly HttpClient Client;
     
     // ws
-    private ClientWebSocket? ClientWebSocket;
-    private WsPacketConnection? WsPacketConnection;
+    private ClientWebSocket ClientWebSocket;
+    private WsPacketConnection WsPacketConnection;
 
     public MoonlightService(ConfigService<ConfigV1> configService, IServiceProvider serviceProvider)
     {
@@ -89,9 +89,6 @@ public class MoonlightService
 
     public async Task SendPacket(object data)
     {
-        if (ClientWebSocket == null || WsPacketConnection == null || ClientWebSocket.State != WebSocketState.Open)
-            await ReconnectWs();
-
         try
         {
             await WsPacketConnection!.Send(data);
@@ -103,7 +100,7 @@ public class MoonlightService
         }
     }
 
-    private async Task ReconnectWs()
+    public async Task ReconnectWs()
     {
         if (WsPacketConnection != null)
             await WsPacketConnection.Close();

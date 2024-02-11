@@ -15,15 +15,17 @@ public class BootService
     private readonly HttpApiClient<MoonlightException> ApiClient;
     private readonly ServerService ServerService;
     private readonly ConfigService<ConfigV1> ConfigService;
+    private readonly MoonlightService MoonlightService;
 
     public BootService(
         HttpApiClient<MoonlightException> apiClient,
         ServerService serverService,
-        ConfigService<ConfigV1> configService)
+        ConfigService<ConfigV1> configService, MoonlightService moonlightService)
     {
         ApiClient = apiClient;
         ServerService = serverService;
         ConfigService = configService;
+        MoonlightService = moonlightService;
     }
 
     public async Task Boot()
@@ -33,6 +35,8 @@ public class BootService
             await Start();
             await FetchServers();
             await Finish();
+
+            await MoonlightService.ReconnectWs();
         }
         catch (HttpRequestException e)
         {
