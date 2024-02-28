@@ -57,10 +57,7 @@ public class ServerConsole
             {
                 try
                 {
-                    var logsToClear = Logs.TakeLast(500).ToArray();
-
-                    foreach (var line in logsToClear)
-                        Logs.Remove(line);
+                    Logs.RemoveRange(0, 500);
                 }
                 catch (Exception e)
                 {

@@ -7,6 +7,7 @@ public class ConfigV1
     public ServerData Server { get; set; } = new();
     public RemoteData Remote { get; set; } = new();
     public FtpData Ftp { get; set; } = new();
+    public HttpData Http { get; set; } = new();
     
     public class FtpData
     {
@@ -40,5 +41,11 @@ public class ConfigV1
     {
         public string Url { get; set; } = "http://localhost:5132/";
         public string Token { get; set; } = "";
+    }
+    
+    public class HttpData
+    {
+        public bool UseSsl { get; set; } = false;
+        public int HttpPort { get; set; } = 8080;
     }
 }

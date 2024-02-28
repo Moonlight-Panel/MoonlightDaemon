@@ -82,4 +82,12 @@ Task.Run(async () =>
     await ftpService.Start();
 });
 
-app.Run();
+string bindUrl;
+var httpConfig = configService.Get().Http;
+
+if (httpConfig.UseSsl)
+    bindUrl = $"https://0.0.0.0:{httpConfig.HttpPort}";
+else
+    bindUrl = $"http://0.0.0.0:{httpConfig.HttpPort}";
+
+app.Run(bindUrl);

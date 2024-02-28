@@ -19,7 +19,16 @@ public static class ServerLockExtensions
     public static async Task LockWhile(this Server server, Func<Task> work)
     {
         await server.Lock();
-        await work.Invoke();
-        await server.Unlock();
+
+        try
+        {
+            await work.Invoke();
+            await server.Unlock();
+        }
+        catch (Exception) // To ensure lock will be released on error
+        {
+            await server.Unlock();
+            throw;
+        }
     }
 }
