@@ -123,7 +123,7 @@ public class ServerService
         };
 
         server.Console.OnNewLogMessage += async message =>
-        {
+        {   
             // Handle online detection if the server is still starting
             if (server.State.State == ServerState.Starting)
             {

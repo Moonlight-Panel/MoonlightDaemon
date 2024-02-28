@@ -57,6 +57,7 @@ var app = builder.Build();
 
 app.UseRouting();
 app.MapControllers();
+app.UseWebSockets();
 
 // Auto start background services
 app.Services.StartBackgroundServices<Program>();

@@ -16,7 +16,6 @@
     <ItemGroup>
       <Folder Include="App\Api\Moonlight\Resources\" />
       <Folder Include="App\Http\Middleware\" />
-      <Folder Include="App\Http\Resources\" />
     </ItemGroup>
 
     <ItemGroup>
@@ -24,7 +23,7 @@
       <PackageReference Include="FubarDev.FtpServer" Version="3.1.2" />
       <PackageReference Include="FubarDev.FtpServer.FileSystem.DotNet" Version="3.1.2" />
       <PackageReference Include="Mono.Posix" Version="7.1.0-final.1.21458.1" />
-      <PackageReference Include="MoonCore" Version="1.0.7" />
+      <PackageReference Include="MoonCore" Version="1.0.9" />
     </ItemGroup>
 
 </Project>

@@ -82,8 +82,8 @@ public static class ServerConfigurationExtensions
         container.WorkingDir = "/mnt/server";
         
         // - User
-        //TODO: use config service
-        container.User = "0:0";
+        // Note: Some images might not work if we set a user here
+        //container.User = "0:0";
 
         // -- Mounts
         container.HostConfig.Mounts = new List<Mount>();

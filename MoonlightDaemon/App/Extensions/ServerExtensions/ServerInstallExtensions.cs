@@ -59,7 +59,7 @@ public static class ServerInstallExtensions
             
             // Write the install script to file
             var installScriptPath = PathBuilder.File(server.Configuration.GetInstallVolumePath(), "install.sh");
-            await File.WriteAllTextAsync(installScriptPath, configuration.Script);
+            await File.WriteAllTextAsync(installScriptPath, configuration.Script.Replace("\r\n", "\n"));
 
             // Build the container params
             var configService = server.ServiceProvider.GetRequiredService<ConfigService<ConfigV1>>();
