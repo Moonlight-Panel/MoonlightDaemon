@@ -108,19 +108,6 @@ public class ServersController : Controller
         return server.State.State.ToString();
     }
 
-    [HttpPost("{id:int}/subscribe")]
-    public async Task<ActionResult> Subscribe(int id)
-    {
-        var server = await ServerService.GetById(id);
-
-        if (server == null)
-            return NotFound("No server with this id found");
-
-        await ServerService.SubscribeToConsole(id);
-
-        return Ok();
-    }
-
     [HttpPost("{id:int}/command")]
     public async Task<ActionResult> Command(int id, [FromBody] SendCommand command)
     {

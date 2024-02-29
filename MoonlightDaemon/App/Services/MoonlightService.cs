@@ -19,17 +19,10 @@ namespace MoonlightDaemon.App.Services;
 public class MoonlightService
 {
     private readonly ConfigService<ConfigV1> ConfigService;
-    private readonly IServiceProvider ServiceProvider;
     private readonly HttpClient Client;
-    
-    // ws
-    private ClientWebSocket ClientWebSocket;
-    private WsPacketConnection WsPacketConnection;
-
-    public MoonlightService(ConfigService<ConfigV1> configService, IServiceProvider serviceProvider)
+    public MoonlightService(ConfigService<ConfigV1> configService)
     {
         ConfigService = configService;
-        ServiceProvider = serviceProvider;
 
         Client = new()
         {
@@ -85,57 +78,5 @@ public class MoonlightService
         }
 
         return null;
-    }
-
-    public async Task SendPacket(object data)
-    {
-        try
-        {
-            await WsPacketConnection!.Send(data);
-        }
-        catch (Exception e)
-        {
-            Logger.Warn("An unhandled error occured while sending packet to moonlight");
-            Logger.Warn(e);
-        }
-    }
-
-    public async Task ReconnectWs()
-    {
-        if (WsPacketConnection != null)
-        {
-            try
-            {
-                await WsPacketConnection.Close();
-            }
-            catch (Exception)
-            {
-                // We can ignore exceptions here, as they will occur often when moonlight restarts
-                // and the daemon tries to close the connections cleanly */ }
-            }
-        }
-
-        var remoteConfig = ConfigService.Get().Remote;
-
-        // Setup connection
-        ClientWebSocket = new ClientWebSocket();
-        ClientWebSocket.Options.SetRequestHeader("Authorization", remoteConfig.Token);
-        
-        // Connect to remote endpoint
-        var remoteUrl = remoteConfig.Url;
-        
-        // Replace http(s) with ws(s)
-        remoteUrl = remoteUrl.Replace("https://", "wss://");
-        remoteUrl = remoteUrl.Replace("http://", "ws://");
-        
-        await ClientWebSocket.ConnectAsync(new Uri(remoteUrl + "api/servers/node/ws"), CancellationToken.None);
-        
-        // Setup ws packet connection
-        WsPacketConnection = new WsPacketConnection(ClientWebSocket);
-
-        await WsPacketConnection.RegisterPacket<ServerStateUpdate>("serverStateUpdate");
-        await WsPacketConnection.RegisterPacket<ServerOutputMessage>("serverOutputMessage");
-        
-        // Done ;)
     }
 }

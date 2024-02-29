@@ -35,8 +35,6 @@ public class BootService
             await Start();
             await FetchServers();
             await Finish();
-
-            await MoonlightService.ReconnectWs();
         }
         catch (HttpRequestException e)
         {

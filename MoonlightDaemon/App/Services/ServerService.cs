@@ -19,18 +19,15 @@ public class ServerService
     private readonly IServiceProvider ServiceProvider;
     private readonly ContainerMonitorService MonitorService;
     private readonly DockerClient DockerClient;
-    private readonly MoonlightService MoonlightService;
 
     private readonly List<Server> Servers = new();
-    private readonly Dictionary<int, DateTime> ConsoleSubscribers = new();
 
     public ServerService(
         ContainerMonitorService monitorService,
         DockerClient dockerClient,
-        IServiceProvider serviceProvider, MoonlightService moonlightService)
+        IServiceProvider serviceProvider)
     {
         ServiceProvider = serviceProvider;
-        MoonlightService = moonlightService;
         MonitorService = monitorService;
         DockerClient = dockerClient;
 
@@ -64,27 +61,6 @@ public class ServerService
 
             await server.HandleExited();
         };
-
-        Task.Run(async () =>
-        {
-            while (true)
-            {
-                await Task.Delay(TimeSpan.FromMinutes(1));
-
-                lock (ConsoleSubscribers)
-                {
-                    var idsOverLimit = ConsoleSubscribers
-                        .Where(x => (DateTime.UtcNow - x.Value).TotalMinutes > 15)
-                        .Select(x => x.Key);
-
-                    foreach (var i in idsOverLimit)
-                    {
-                        ConsoleSubscribers.Remove(i);
-                        Logger.Debug($"Removed console subscriber for {i}");
-                    }
-                }
-            }
-        });
     }
 
     public Task AddFromConfiguration(ServerConfiguration configuration)
@@ -106,11 +82,7 @@ public class ServerService
 
         stateMachine.OnTransitioned += async state =>
         {
-            await MoonlightService.SendPacket(new ServerStateUpdate()
-            {
-                Id = configuration.Id,
-                State = state
-            });
+            // 
         };
 
         var server = new Server()
@@ -130,19 +102,6 @@ public class ServerService
                 if (Regex.Matches(message, server.Configuration.Image.OnlineDetection).Any())
                     await server.State.TransitionTo(ServerState.Online);
             }
-
-
-            lock (ConsoleSubscribers)
-            {
-                if (!ConsoleSubscribers.ContainsKey(server.Configuration.Id))
-                    return;
-            }
-
-            await MoonlightService.SendPacket(new ServerOutputMessage()
-            {
-                Id = server.Configuration.Id,
-                Message = message
-            });
         };
 
         lock (Servers)
@@ -199,13 +158,6 @@ public class ServerService
                 await server.State.SetState(ServerState.Online);
                 await server.Reattach();
 
-                // Notify moonlight about the restored server state
-                await MoonlightService.SendPacket(new ServerStateUpdate()
-                {
-                    Id = server.Configuration.Id,
-                    State = ServerState.Online
-                });
-
                 Logger.Info($"Restored server {server.Configuration.Id} and reattached stream");
             }
         }
@@ -236,41 +188,5 @@ public class ServerService
             Servers.Remove(server);
         
         return Task.CompletedTask;
-    }
-
-    public async Task SubscribeToConsole(int id)
-    {
-        bool wasAlreadyAdded;
-
-        lock (ConsoleSubscribers)
-        {
-            wasAlreadyAdded = ConsoleSubscribers
-                .Where(x => (DateTime.UtcNow - x.Value).TotalMinutes < 15)
-                .Any(x => x.Key == id);
-        }
-
-        // Add/update console subscriber time
-        lock (ConsoleSubscribers)
-            ConsoleSubscribers[id] = DateTime.UtcNow;
-
-        // When the subscription is new, we want to stream all previous messages to restore console history
-        if (!wasAlreadyAdded)
-        {
-            var server = await GetById(id);
-
-            if (server == null)
-                return;
-
-            var messages = await server.Console.GetAllLogMessages();
-
-            foreach (var message in messages)
-            {
-                await MoonlightService.SendPacket(new ServerOutputMessage()
-                {
-                    Id = id,
-                    Message = message
-                });
-            }
-        }
     }
 }

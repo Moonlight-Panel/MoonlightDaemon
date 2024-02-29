@@ -18,7 +18,6 @@ public static class ServerStatsExtension
             
         await client.Containers.GetContainerStatsAsync(containerName, new()
         {
-            OneShot = true,
             Stream = false
         }, new Progress<ContainerStatsResponse>(response =>
         {
