@@ -1,4 +1,5 @@
 using Docker.DotNet.Models;
+using MoonCore.Helpers;
 using MoonlightDaemon.App.Models;
 
 namespace MoonlightDaemon.App.Extensions;
@@ -31,18 +32,18 @@ public static class ContainerStatsResponseExtensions
         result.CpuUsage = Math.Round(cpuPercent * 1000) / 1000;
         
         // Memory
-        result.MemoryTotal = (long)response.MemoryStats.Limit;
-        result.MemoryUsage = (long)response.MemoryStats.Usage;
+        result.MemoryTotal = ByteSizeValue.FromBytes((long)response.MemoryStats.Limit).MegaBytes;
+        result.MemoryUsage = ByteSizeValue.FromBytes((long)response.MemoryStats.Usage).MegaBytes;
         
         // Io
-        result.IoRead = (long)response.StorageStats.ReadSizeBytes;
-        result.IoWrite = (long)response.StorageStats.WriteSizeBytes;
+        result.IoRead = (long)response.StorageStats.ReadCountNormalized;
+        result.IoWrite = (long)response.StorageStats.WriteCountNormalized;
         
         // Net
         foreach (var network in response.Networks)
         {
-            result.NetRead += (long)network.Value.RxBytes;
-            result.NetWrite += (long)network.Value.TxBytes;
+            result.NetRead += ByteSizeValue.FromBytes((long)network.Value.RxBytes).KiloBytes;
+            result.NetWrite += ByteSizeValue.FromBytes((long)network.Value.TxBytes).KiloBytes;
         }
         
         return result;
