@@ -7,6 +7,7 @@ public class ServerConfiguration
     public LimitsData Limits { get; set; }
     public ImageData Image { get; set; }
     public AllocationData MainAllocation { get; set; }
+    public NetworkData Network { get; set; }
     public List<AllocationData> Allocations { get; set; }
     public Dictionary<string, string> Variables { get; set; } = new();
     
@@ -34,5 +35,11 @@ public class ServerConfiguration
     {
         public string IpAddress { get; set; }
         public int Port { get; set; }
+    }
+    
+    public class NetworkData
+    {
+        public bool Enable { get; set; }
+        public int Id { get; set; }
     }
 }
