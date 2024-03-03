@@ -40,9 +40,16 @@ public static class ServerCreateExtensions
 
         var configService = server.ServiceProvider.GetRequiredService<ConfigService<ConfigV1>>();
         var container = server.Configuration.ToRuntimeContainerParameters(configService);
-
+        
         await server.Log("Creating container");
         await client.Containers.CreateContainerAsync(container);
+        
+        // CHeck and connect container to network
+        if (server.Configuration.Network.Enable)
+        {
+            await server.Log("Ensuring network connection");
+            await server.ConnectToNetwork();
+        }
         
         // Attach to console. Attach stream to console stream
         var stream = await client.Containers.AttachContainerAsync(containerName, true, new()

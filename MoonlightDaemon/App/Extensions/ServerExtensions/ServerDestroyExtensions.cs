@@ -25,6 +25,10 @@ public static class ServerDestroyExtensions
             if (container.State.Running)
                 await client.Containers.KillContainerAsync(containerName, new());
 
+            // Check and disconnect from network
+            if (server.Configuration.Network.Enable)
+                await server.DisconnectFromNetwork();
+            
             await client.Containers.RemoveContainerAsync(containerName, new());
         });
     }

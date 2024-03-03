@@ -185,31 +185,35 @@ public static class ServerConfigurationExtensions
         };
         
         // -- Ports
-        container.ExposedPorts = new Dictionary<string, EmptyStruct>();
-        container.HostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>();
 
-        foreach (var port in configuration.Allocations.Select(x => x.Port))
+        if (!configuration.Network.DisablePublic)
         {
-            container.ExposedPorts.Add($"{port}/tcp", new());
-            container.ExposedPorts.Add($"{port}/udp", new());
+            container.ExposedPorts = new Dictionary<string, EmptyStruct>();
+            container.HostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>();
 
-            container.HostConfig.PortBindings.Add($"{port}/tcp", new List<PortBinding>
+            foreach (var port in configuration.Allocations.Select(x => x.Port))
             {
-                new()
+                container.ExposedPorts.Add($"{port}/tcp", new());
+                container.ExposedPorts.Add($"{port}/udp", new());
+
+                container.HostConfig.PortBindings.Add($"{port}/tcp", new List<PortBinding>
                 {
-                    HostPort = port.ToString(),
-                    HostIP = config.Docker.HostBindIp
-                }
-            });
+                    new()
+                    {
+                        HostPort = port.ToString(),
+                        HostIP = config.Docker.HostBindIp
+                    }
+                });
             
-            container.HostConfig.PortBindings.Add($"{port}/udp", new List<PortBinding>
-            {
-                new()
+                container.HostConfig.PortBindings.Add($"{port}/udp", new List<PortBinding>
                 {
-                    HostPort = port.ToString(),
-                    HostIP = config.Docker.HostBindIp
-                }
-            });
+                    new()
+                    {
+                        HostPort = port.ToString(),
+                        HostIP = config.Docker.HostBindIp
+                    }
+                });
+            }
         }
         
         // - Labels

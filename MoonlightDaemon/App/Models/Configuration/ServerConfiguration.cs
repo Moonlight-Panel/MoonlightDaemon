@@ -41,5 +41,6 @@ public class ServerConfiguration
     {
         public bool Enable { get; set; }
         public int Id { get; set; }
+        public bool DisablePublic { get; set; }
     }
 }
