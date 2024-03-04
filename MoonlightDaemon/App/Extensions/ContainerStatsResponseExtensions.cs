@@ -9,6 +9,10 @@ public static class ContainerStatsResponseExtensions
     public static ServerStats ToServerStats(this ContainerStatsResponse response)
     {
         var result = new ServerStats();
+        
+        // Null check for the last stats response before a container is killed
+        if (response.CPUStats.CPUUsage == null)
+            return result;
 
         // CPU
         var cpuDelta = (float)response.CPUStats.CPUUsage.TotalUsage - response.PreCPUStats.CPUUsage.TotalUsage;

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MoonCore.Helpers;
 using MoonlightDaemon.App.Services;
 
 namespace MoonlightDaemon.App.Http.Controllers.System;
@@ -16,6 +17,8 @@ public class BootController : Controller
 
     public async Task<ActionResult> Boot()
     {
+        Logger.Info("Received boot signal from moonlight");
+        
         await BootService.Boot();
 
         return Ok();

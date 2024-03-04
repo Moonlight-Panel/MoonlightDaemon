@@ -1,9 +1,6 @@
 using Docker.DotNet;
 using Docker.DotNet.Models;
-using MoonCore.Helpers;
 using MoonlightDaemon.App.Models;
-using MoonlightDaemon.App.Packets;
-using Newtonsoft.Json;
 
 namespace MoonlightDaemon.App.Extensions.ServerExtensions;
 
@@ -44,10 +41,7 @@ public static class ServerStatsExtension
             {
                 await handle.Invoke(response.ToServerStats());
             }
-            catch (Exception e)
-            {
-                Logger.Info(JsonConvert.SerializeObject(response));
-            }
+            catch (NullReferenceException) { /* sometimes the last state update has empty components. thats why we ignore it here */ }
         }), cancellation.Token);
 
         return cancellation;
