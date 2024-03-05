@@ -4,6 +4,7 @@ using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Http.Requests;
+using MoonlightDaemon.App.Http.Resources;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Models.Enums;
@@ -306,5 +307,11 @@ public class ServersController : Controller
         });
 
         return Ok();
+    }
+
+    [HttpGet("list")]
+    public async Task<ActionResult<ServerListItem>> List([FromQuery] bool includeOffline = false)
+    {
+        return Ok(await ServerService.GetList(includeOffline));
     }
 }

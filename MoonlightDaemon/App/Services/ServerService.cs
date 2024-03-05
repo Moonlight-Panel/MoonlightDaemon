@@ -5,6 +5,7 @@ using MoonCore.Helpers;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Helpers;
+using MoonlightDaemon.App.Http.Resources;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Models.Enums;
@@ -188,5 +189,60 @@ public class ServerService
             Servers.Remove(server);
         
         return Task.CompletedTask;
+    }
+
+    public async Task<ServerListItem[]> GetList(bool includeOffline)
+    {
+        Server[] servers;
+
+        lock (Servers)
+        {
+            if (includeOffline)
+                servers = Servers.ToArray();
+            else
+            {
+                servers = Servers
+                    .Where(x => x.State.State != ServerState.Offline)
+                    .ToArray();
+            }
+        }
+
+        List<Task> statsTask = new();
+        List<ServerListItem> result = new();
+
+        foreach (var server in servers)
+        {
+            var item = new ServerListItem()
+            {
+                Id = server.Configuration.Id,
+                State = server.State.State,
+                Stats = new()
+            };
+            
+            result.Add(item);
+            
+            // If the server is offline or in join2start, we are done here
+            if(server.State.State == ServerState.Offline || server.State.State == ServerState.Join2Start)
+                continue;
+            
+            // Server is running => get the stats
+            statsTask.Add(Task.Run(async () =>
+            {
+                try
+                {
+                    item.Stats = await server.GetStats() ?? new();
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    throw;
+                }
+            }));
+        }
+
+        foreach (var task in statsTask)
+            await task.WaitAsync(CancellationToken.None);
+
+        return result.ToArray();
     }
 }
