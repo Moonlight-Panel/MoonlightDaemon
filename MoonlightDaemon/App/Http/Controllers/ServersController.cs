@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using MoonCore.Helpers;
 using MoonlightDaemon.App.Exceptions;
+using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
 using MoonlightDaemon.App.Http.Requests;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Models.Enums;
-using MoonlightDaemon.App.Packets;
 using MoonlightDaemon.App.Services;
 
 namespace MoonlightDaemon.App.Http.Controllers;
@@ -16,12 +16,16 @@ namespace MoonlightDaemon.App.Http.Controllers;
 public class ServersController : Controller
 {
     private readonly ServerService ServerService;
+    private readonly BackupService BackupService;
+    private readonly MoonlightService MoonlightService;
     private readonly HttpApiClient<MoonlightException> HttpApiClient;
 
-    public ServersController(ServerService serverService, HttpApiClient<MoonlightException> httpApiClient)
+    public ServersController(ServerService serverService, HttpApiClient<MoonlightException> httpApiClient, BackupService backupService, MoonlightService moonlightService)
     {
         ServerService = serverService;
         HttpApiClient = httpApiClient;
+        BackupService = backupService;
+        MoonlightService = moonlightService;
     }
 
     [HttpPost("{id:int}/sync")]
@@ -200,6 +204,107 @@ public class ServersController : Controller
         if(statsCancel != null)
             statsCancel.Cancel();
         
+        return Ok();
+    }
+
+    [HttpPost("{id:int}/backups/{backupId:int}")]
+    public async Task<ActionResult> CreateBackup(int id, int backupId)
+    {
+        var server = await ServerService.GetById(id);
+
+        if (server == null)
+            return NotFound("No server with this id found");
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                var result = await BackupService.Create(server, backupId);
+                
+                await MoonlightService.ReportBackupStatus(server, backupId, new()
+                {
+                    Successful = true,
+                    Size = result.Size
+                });
+            }
+            catch (Exception e)
+            {
+                Logger.Warn($"An error occured while creating backup for server {server.Configuration.Id}");
+                Logger.Warn(e);
+
+                await MoonlightService.ReportBackupStatus(server, backupId, new()
+                {
+                    Successful = false,
+                    Size = 0
+                });
+            }
+        });
+
+        return Ok();
+    }
+    
+    [HttpDelete("{id:int}/backups/{backupId:int}")]
+    public async Task<ActionResult> DeleteBackup(int id, int backupId)
+    {
+        var server = await ServerService.GetById(id);
+
+        if (server == null)
+            return NotFound("No server with this id found");
+
+        await BackupService.Delete(server, backupId);
+
+        return Ok();
+    }
+
+    [HttpGet("{id:int}/backups/{backupId:int}")]
+    public async Task<ActionResult> DownloadBackup(int id, int backupId) // [FromQuery] string downloadToken
+    {
+        //TODO: Implement download token
+        
+        var server = await ServerService.GetById(id);
+
+        if (server == null)
+            return NotFound("No server with this id found");
+
+        try
+        {
+            var download = await BackupService.GetDownload(server, backupId);
+
+            return File(download.Stream, download.ContentType, download.FileName);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn("An error occured while downloading backup");
+            Logger.Warn(e);
+
+            return Problem();
+        }
+    }
+
+    [HttpPatch("{id:int}/backups/{backupId:int}")]
+    public async Task<ActionResult> RestoreBackup(int id, int backupId)
+    {
+        var server = await ServerService.GetById(id);
+
+        if (server == null)
+            return NotFound("No server with this id found");
+
+        if (server.State.State != ServerState.Offline)
+            return BadRequest();
+
+        await server.LockWhile(async () =>
+        {
+            try
+            {
+                await BackupService.Restore(server, backupId);
+            }
+            catch (Exception e)
+            {
+                Logger.Warn("A error occured while restoring backup");
+                Logger.Warn(e);
+            }
+        });
+
         return Ok();
     }
 }

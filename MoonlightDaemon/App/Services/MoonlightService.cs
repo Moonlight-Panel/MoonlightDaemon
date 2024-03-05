@@ -1,16 +1,12 @@
-using System.Net.Sockets;
-using System.Net.WebSockets;
 using MoonCore.Attributes;
 using MoonCore.Helpers;
 using MoonCore.Services;
+using MoonlightDaemon.App.Api.Moonlight.Requests;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions;
-using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Configuration;
-using MoonlightDaemon.App.Packets;
-using Newtonsoft.Json;
 
 namespace MoonlightDaemon.App.Services;
 
@@ -78,5 +74,19 @@ public class MoonlightService
         }
 
         return null;
+    }
+
+    public async Task ReportBackupStatus(Server server, int backupId, BackupStatus status)
+    {
+        try
+        {
+            await Client.SendHandled<MoonlightException>(HttpMethod.Post,
+                $"{server.Configuration.Id}/backups/{backupId}", status);
+        }
+        catch (Exception e)
+        {
+            Logger.Warn("An error occured while reporting backup status to moonlight");
+            Logger.Warn(e);
+        }
     }
 }

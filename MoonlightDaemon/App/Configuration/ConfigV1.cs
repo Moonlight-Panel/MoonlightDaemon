@@ -22,6 +22,7 @@ public class ConfigV1
         public float MemoryOverheadMultiplier { get; set; } = 0.05f;
         public bool EnableSwap { get; set; } = true;
         public float SwapMultiplier { get; set; } = 2f;
+        public string BackupProvider { get; set; } = "file";
     }
     
     public class DockerData

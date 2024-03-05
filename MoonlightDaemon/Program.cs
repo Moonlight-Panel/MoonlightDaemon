@@ -5,11 +5,14 @@ using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Parsers;
+using MoonlightDaemon.App.Provider;
 using MoonlightDaemon.App.Services;
 
 Directory.CreateDirectory("/etc/moonlight");
 Directory.CreateDirectory("/var/lib/moonlight");
 Directory.CreateDirectory("/var/lib/moonlight/volumes");
+Directory.CreateDirectory("/var/lib/moonlight/install");
+Directory.CreateDirectory("/var/lib/moonlight/backups");
 
 // Build app
 var builder = WebApplication.CreateBuilder(args);
@@ -67,6 +70,11 @@ var parseService = app.Services.GetRequiredService<ParseService>();
 
 parseService.Register<FileParser>("file");
 parseService.Register<PropertiesParser>("properties");
+
+// Add default backup providers
+var backupService = app.Services.GetRequiredService<BackupService>();
+
+backupService.Register<FileBackupProvider>("file");
 
 // Run delayed tasks
 Task.Run(async () =>
