@@ -4,6 +4,7 @@ using MoonCore.Extensions;
 using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
+using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Parsers;
 using MoonlightDaemon.App.Provider;
 using MoonlightDaemon.App.Services;
@@ -37,6 +38,7 @@ builder.Services.AddControllers();
 
 // Services
 builder.Services.AddSingleton(configService);
+builder.Services.AddSingleton(new JwtService<DaemonJwtType>(configService.Get().Remote.Token));
 builder.Services.ConstructMoonCoreDi<Program>();
 
 // Docker Client

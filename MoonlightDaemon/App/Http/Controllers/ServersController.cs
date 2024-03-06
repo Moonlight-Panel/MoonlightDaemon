@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using MoonCore.Helpers;
+using MoonCore.Services;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
@@ -20,13 +21,20 @@ public class ServersController : Controller
     private readonly BackupService BackupService;
     private readonly MoonlightService MoonlightService;
     private readonly HttpApiClient<MoonlightException> HttpApiClient;
+    private readonly JwtService<DaemonJwtType> JwtService;
 
-    public ServersController(ServerService serverService, HttpApiClient<MoonlightException> httpApiClient, BackupService backupService, MoonlightService moonlightService)
+    public ServersController(
+        ServerService serverService,
+        HttpApiClient<MoonlightException> httpApiClient,
+        BackupService backupService,
+        MoonlightService moonlightService,
+        JwtService<DaemonJwtType> jwtService)
     {
         ServerService = serverService;
         HttpApiClient = httpApiClient;
         BackupService = backupService;
         MoonlightService = moonlightService;
+        JwtService = jwtService;
     }
 
     [HttpPost("{id:int}/sync")]
@@ -258,14 +266,29 @@ public class ServersController : Controller
     }
 
     [HttpGet("{id:int}/backups/{backupId:int}")]
-    public async Task<ActionResult> DownloadBackup(int id, int backupId) // [FromQuery] string downloadToken
+    public async Task<ActionResult> DownloadBackup(int id, int backupId, [FromQuery] string downloadToken)
     {
-        //TODO: Implement download token
+        // Jwt validation
+        if (!await JwtService.Validate(downloadToken, DaemonJwtType.BackupDownload))
+            return BadRequest("Invalid jwt");
+
+        var data = await JwtService.Decode(downloadToken);
+
+        if (!data.ContainsKey("BackupId"))
+            return BadRequest("Backup id missing in jwt payload");
+
+        if (!int.TryParse(data["BackupId"], out int jwtBackupId))
+            return BadRequest("Unable to parse backup id");
+
+        if (backupId != jwtBackupId)
+            return StatusCode(403);
         
         var server = await ServerService.GetById(id);
 
         if (server == null)
             return NotFound("No server with this id found");
+        
+        // Now we can start the download
 
         try
         {
