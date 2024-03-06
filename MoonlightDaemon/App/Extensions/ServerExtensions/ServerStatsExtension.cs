@@ -6,20 +6,31 @@ namespace MoonlightDaemon.App.Extensions.ServerExtensions;
 
 public static class ServerStatsExtension
 {
-    public static async Task<ServerStats?> GetStats(this Server server)
+    public static async Task<ServerStats> GetStats(this Server server)
     {
         var client = server.ServiceProvider.GetRequiredService<DockerClient>();
         var containerName = $"moonlight-runtime-{server.Configuration.Id}";
 
-        ServerStats? result = default;
+        ServerStats result = new();
+        TaskCompletionSource completion = new();
             
         await client.Containers.GetContainerStatsAsync(containerName, new()
         {
             Stream = false
         }, new Progress<ContainerStatsResponse>(response =>
         {
-            result = response.ToServerStats();
+            try
+            {
+                result = response.ToServerStats();
+                completion.SetResult();
+            }
+            catch (Exception)
+            {
+                completion.SetResult();
+            }
         }), CancellationToken.None);
+
+        await completion.Task;
 
         return result;
     }

@@ -230,7 +230,7 @@ public class ServerService
             {
                 try
                 {
-                    item.Stats = await server.GetStats() ?? new();
+                    item.Stats = await server.GetStats();
                 }
                 catch (Exception e)
                 {
