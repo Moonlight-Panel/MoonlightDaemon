@@ -1,3 +1,4 @@
+using MoonCore.Helpers;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 
@@ -14,6 +15,10 @@ public static class ServerVolumeExtensions
 
         // TODO: Make uid and gid dynamic loaded by temp config
         await volumeHelper.Ensure(server.Configuration.GetRuntimeVolumePath(), uid, gid);
+        
+        // Hook for virtual disks
+        if (server.Configuration.Limits.UseVirtualDisk)
+            await server.EnsureVirtualDisk();
     }
 
     public static async Task EnsureInstallVolume(this Server server) => await EnsureInstallVolume(server, 0, 0);

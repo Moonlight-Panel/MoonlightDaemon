@@ -19,6 +19,7 @@ public class ServerConfiguration
         public bool DisableSwap { get; set; } = false;
         public int PidsLimit { get; set; } = 100;
         public bool EnableOomKill { get; set; } = false;
+        public bool UseVirtualDisk { get; set; }
     }
     
     public class ImageData

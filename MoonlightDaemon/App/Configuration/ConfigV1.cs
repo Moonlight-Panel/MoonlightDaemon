@@ -23,6 +23,7 @@ public class ConfigV1
         public bool EnableSwap { get; set; } = true;
         public float SwapMultiplier { get; set; } = 2f;
         public string BackupProvider { get; set; } = "file";
+        public string VirtualDiskFileSystem { get; set; } = "ext4";
     }
     
     public class DockerData

@@ -10,6 +10,12 @@ public static class ServerDeleteExtensions
         
         await server.LockWhile(async () =>
         {
+            if (server.Configuration.Limits.UseVirtualDisk)
+            {
+                await server.DestroyVirtualDisk();
+                await server.DeleteVirtualDisk();
+            }
+            
             if(Directory.Exists(server.Configuration.GetInstallVolumePath()))
                 Directory.Delete(server.Configuration.GetInstallVolumePath(), true);
             
