@@ -120,6 +120,20 @@ public class ServersController : Controller
 
         return server.State.State.ToString();
     }
+    
+    [HttpGet("{id:int}/stats")]
+    public async Task<ActionResult<ServerStats>> GetStats(int id)
+    {
+        var server = await ServerService.GetById(id);
+
+        if (server == null)
+            return NotFound("No server with this id found");
+
+        if (server.State.State == ServerState.Offline || server.State.State == ServerState.Installing)
+            return new ServerStats();
+
+        return await server.GetStats();
+    }
 
     [HttpPost("{id:int}/command")]
     public async Task<ActionResult> Command(int id, [FromBody] SendCommand command)
