@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using MoonCore.Helpers;
 using MoonlightDaemon.App.Services;
 
-namespace MoonlightDaemon.App.Http.Controllers.System;
+namespace MoonlightDaemon.App.Http.Controllers.Sys;
 
 [ApiController]
 [Route("system/boot")]
