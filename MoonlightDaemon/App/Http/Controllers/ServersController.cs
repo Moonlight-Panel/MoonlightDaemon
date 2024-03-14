@@ -192,20 +192,50 @@ public class ServersController : Controller
 
         async Task HandleStateChange(ServerState state)
         {
-            await packetConnection.Send(state);
+            try
+            {
+                await packetConnection.Send(state);
+            }
+            catch (Exception e)
+            {
+                Logger.Warn("An error occured while sending state packet");
+                Logger.Warn(e);
+
+                await packetConnection.Close();
+            }
 
             if (state == ServerState.Starting)
             {
                 statsCancel = await server.GetStatsStream(async stats =>
                 {
-                    await packetConnection.Send(stats);
+                    try
+                    {
+                        await packetConnection.Send(stats);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.Warn("An error occured while sending stats packet");
+                        Logger.Warn(e);
+
+                        await packetConnection.Close();
+                    }
                 });
             }
         }
         
         async Task HandleNewMessage(string message)
         {
-            await packetConnection.Send(message);
+            try
+            {
+                await packetConnection.Send(message);
+            }
+            catch (Exception e)
+            {
+                Logger.Warn("An error occured while sending message packet");
+                Logger.Warn(e);
+
+                await packetConnection.Close();
+            }
         }
 
         server.State.OnTransitioned += HandleStateChange;
@@ -215,7 +245,17 @@ public class ServersController : Controller
         {
             statsCancel = await server.GetStatsStream(async stats =>
             {
-                await packetConnection.Send(stats);
+                try
+                {
+                    await packetConnection.Send(stats);
+                }
+                catch (Exception e)
+                {
+                    Logger.Warn("An error occured while sending stats packet");
+                    Logger.Warn(e);
+
+                    await packetConnection.Close();
+                }
             });
         }
 
