@@ -1,0 +1,32 @@
+{
+  "Id": "daemon",
+  "Repository": "https://github.com/Moonlight-Panel/MoonlightDaemon",
+  "Branch": "main",
+  "Packages": [
+    "dotnet-sdk-7.0"
+  ],
+  "Artifacts": [
+    {
+      "Name": "MoonlightDaemon_x64",
+      "Path": "MoonlightDaemon/bin/Release/net7.0/linux-x64/publish/MoonlightDaemon"
+    },
+    {
+      "Name": "MoonlightDaemon_arm64",
+      "Path": "MoonlightDaemon/bin/Release/net7.0/linux-arm64/publish/MoonlightDaemon"
+    }
+  ],
+  "Steps": [
+    {
+      "Name": "Compile for x64",
+      "Commands": [
+        "dotnet publish -c Release -r linux-x64 --self-contained true /p:PublishSingleFile=true"
+      ]
+    },
+    {
+      "Name": "Compile for arm64",
+      "Commands": [
+        "dotnet publish -c Release -r linux-arm64 --self-contained true /p:PublishSingleFile=true"
+      ]
+    }
+  ]
+}
