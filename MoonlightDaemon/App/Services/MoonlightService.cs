@@ -16,15 +16,20 @@ public class MoonlightService
 {
     private readonly ConfigService<ConfigV1> ConfigService;
     private readonly HttpClient Client;
+
     public MoonlightService(ConfigService<ConfigV1> configService)
     {
         ConfigService = configService;
 
+        var remoteUrl = ConfigService.Get().Remote.Url;
+
+        var url = remoteUrl.StartsWith("/") ? remoteUrl : remoteUrl + "/";
+
         Client = new()
         {
-            BaseAddress = new Uri(ConfigService.Get().Remote.Url + "api/servers/")
+            BaseAddress = new Uri(url + "api/servers/")
         };
-        
+
         Client.DefaultRequestHeaders.Add("Authorization", ConfigService.Get().Remote.Token);
     }
 
@@ -40,12 +45,14 @@ public class MoonlightService
         }
         catch (MoonlightException e)
         {
-            Logger.Warn($"An error occured while fetching install configuration for server {server.Configuration.Id} from panel");
+            Logger.Warn(
+                $"An error occured while fetching install configuration for server {server.Configuration.Id} from panel");
             Logger.Warn(e);
         }
         catch (Exception e)
         {
-            Logger.Fatal($"An unhandled error occured while fetching install configuration for server {server.Configuration.Id} from panel");
+            Logger.Fatal(
+                $"An unhandled error occured while fetching install configuration for server {server.Configuration.Id} from panel");
             Logger.Fatal(e);
         }
 
@@ -64,12 +71,14 @@ public class MoonlightService
         }
         catch (MoonlightException e)
         {
-            Logger.Warn($"An error occured while fetching install configuration for server {server.Configuration.Id} from panel");
+            Logger.Warn(
+                $"An error occured while fetching install configuration for server {server.Configuration.Id} from panel");
             Logger.Warn(e);
         }
         catch (Exception e)
         {
-            Logger.Fatal($"An unhandled error occured while fetching install configuration for server {server.Configuration.Id} from panel");
+            Logger.Fatal(
+                $"An unhandled error occured while fetching install configuration for server {server.Configuration.Id} from panel");
             Logger.Fatal(e);
         }
 
