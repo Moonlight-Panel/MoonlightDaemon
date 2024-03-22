@@ -49,5 +49,6 @@ public class ConfigV1
     {
         public bool UseSsl { get; set; } = false;
         public int HttpPort { get; set; } = 8080;
+        public string Fqdn { get; set; } = "";
     }
 }
