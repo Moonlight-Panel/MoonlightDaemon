@@ -14,88 +14,25 @@ namespace MoonlightDaemon.App.Services;
 // This class is for interacting with the panel
 public class MoonlightService
 {
-    private readonly ConfigService<ConfigV1> ConfigService;
-    private readonly HttpClient Client;
+    private readonly HttpApiClient<MoonlightException> ApiClient;
 
-    public MoonlightService(ConfigService<ConfigV1> configService)
+    public MoonlightService(HttpApiClient<MoonlightException> apiClient)
     {
-        ConfigService = configService;
-
-        var remoteUrl = ConfigService.Get().Remote.Url;
-
-        var url = remoteUrl.StartsWith("/") ? remoteUrl : remoteUrl + "/";
-
-        Client = new()
-        {
-            BaseAddress = new Uri(url + "api/servers/")
-        };
-
-        Client.DefaultRequestHeaders.Add("Authorization", ConfigService.Get().Remote.Token);
+        ApiClient = apiClient;
     }
 
     public async Task<ServerInstallConfiguration?> GetInstallConfiguration(Server server)
     {
-        try
-        {
-            var configuration =
-                await Client.SendHandled<ServerInstallConfiguration, MoonlightException>(HttpMethod.Get,
-                    $"{server.Configuration.Id}/install");
-
-            return configuration;
-        }
-        catch (MoonlightException e)
-        {
-            Logger.Warn(
-                $"An error occured while fetching install configuration for server {server.Configuration.Id} from panel");
-            Logger.Warn(e);
-        }
-        catch (Exception e)
-        {
-            Logger.Fatal(
-                $"An unhandled error occured while fetching install configuration for server {server.Configuration.Id} from panel");
-            Logger.Fatal(e);
-        }
-
-        return null;
+        return await ApiClient.Get<ServerInstallConfiguration>($"api/servers/{server.Configuration.Id}/install");
     }
 
     public async Task<ServerConfiguration?> GetConfiguration(Server server)
     {
-        try
-        {
-            var configuration =
-                await Client.SendHandled<ServerConfiguration, MoonlightException>(HttpMethod.Get,
-                    $"{server.Configuration.Id}");
-
-            return configuration;
-        }
-        catch (MoonlightException e)
-        {
-            Logger.Warn(
-                $"An error occured while fetching install configuration for server {server.Configuration.Id} from panel");
-            Logger.Warn(e);
-        }
-        catch (Exception e)
-        {
-            Logger.Fatal(
-                $"An unhandled error occured while fetching install configuration for server {server.Configuration.Id} from panel");
-            Logger.Fatal(e);
-        }
-
-        return null;
+        return await ApiClient.Get<ServerConfiguration>($"api/servers/{server.Configuration.Id}");
     }
 
     public async Task ReportBackupStatus(Server server, int backupId, BackupStatus status)
     {
-        try
-        {
-            await Client.SendHandled<MoonlightException>(HttpMethod.Post,
-                $"{server.Configuration.Id}/backups/{backupId}", status);
-        }
-        catch (Exception e)
-        {
-            Logger.Warn("An error occured while reporting backup status to moonlight");
-            Logger.Warn(e);
-        }
+        await ApiClient.Post($"api/servers/{server.Configuration.Id}/backups/{backupId}", status);
     }
 }
