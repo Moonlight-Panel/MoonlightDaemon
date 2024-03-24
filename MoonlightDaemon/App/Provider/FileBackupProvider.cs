@@ -1,6 +1,7 @@
 using System.Text;
 using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Tar;
+using MoonCore.Helpers;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Abstractions;
@@ -67,25 +68,25 @@ public class FileBackupProvider : IBackupProvider
         await using var gzoStream = new GZipOutputStream(outStream);
         using var tarArchive = TarArchive.CreateOutputTarArchive(gzoStream, Encoding.UTF8);
 
-        tarArchive.RootPath = src;
+        tarArchive.RootPath = "/";
 
-        if (tarArchive.RootPath.EndsWith("/"))
-            tarArchive.RootPath = tarArchive.RootPath.Remove(tarArchive.RootPath.Length - 1);
-
-        await AddDirectoryToTar(tarArchive, src);
+        await AddDirectoryToTar(tarArchive, src, src);
     }
 
-    private async Task AddDirectoryToTar(TarArchive archive, string src)
+    private async Task AddDirectoryToTar(TarArchive archive, string src, string rootPath)
     {
         foreach (var file in Directory.GetFiles(src))
         {
             var entry = TarEntry.CreateEntryFromFile(file);
+
+            entry.Name = Formatter.ReplaceStart(file, rootPath, "");
+            
             archive.WriteEntry(entry, false);
         }
 
         foreach (var directory in Directory.GetDirectories(src))
         {
-            await AddDirectoryToTar(archive, directory);
+            await AddDirectoryToTar(archive, directory, rootPath);
         }
     }
 
