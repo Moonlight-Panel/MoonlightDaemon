@@ -185,9 +185,22 @@ public class ServersController : Controller
         await packetConnection.Send(server.State.State);
 
         // Transfer cached messages
-        foreach (var message in await server.Console.GetAllLogMessages())
-            await packetConnection.Send(message);
+        // In order to prevent a slow loading console on slow internet connections,
+        // we build all log messages into a multiple message update packets.
 
+        var messages = await server.Console.GetAllLogMessages();
+        
+        foreach (var messageChunk in messages.Chunk(10))
+        {
+            var combinedMessage = "";
+
+            foreach (var message in messageChunk)
+                combinedMessage += message + "\n";
+            
+            await packetConnection.Send(combinedMessage);
+        }
+
+        // Stats
         CancellationTokenSource? statsCancel = default;
 
         async Task HandleStateChange(ServerState state)
