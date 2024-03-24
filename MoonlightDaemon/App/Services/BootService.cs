@@ -82,6 +82,7 @@ public class BootService
         // Replace http(s) with ws(s)
         remoteUrl = remoteUrl.Replace("https://", "wss://");
         remoteUrl = remoteUrl.Replace("http://", "ws://");
+        remoteUrl = remoteUrl.EndsWith("/") ? remoteUrl : remoteUrl + "/";
         
         await webSocket.ConnectAsync(new Uri(remoteUrl + "api/servers/ws"), CancellationToken.None);
         
