@@ -5,6 +5,7 @@ using MoonCore.Attributes;
 using MoonCore.Helpers;
 using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
+using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Helpers.Ftp;
 
@@ -16,14 +17,19 @@ public class FtpService : IDisposable
     private readonly Dictionary<string, int> Sessions = new();
     
     private readonly ConfigService<ConfigV1> ConfigService;
+    private readonly HttpApiClient<MoonlightException> HttpApiClient;
     private readonly ServerService ServerService;
 
     private IFtpServerHost Server;
 
-    public FtpService(ConfigService<ConfigV1> configService, ServerService serverService)
+    public FtpService(
+        ConfigService<ConfigV1> configService,
+        ServerService serverService,
+        HttpApiClient<MoonlightException> httpApiClient)
     {
         ConfigService = configService;
         ServerService = serverService;
+        HttpApiClient = httpApiClient;
     }
 
     public async Task Start()
@@ -44,6 +50,7 @@ public class FtpService : IDisposable
         // ... and add linking services (e.g. ConfigService)
         services.AddSingleton(ConfigService);
         services.AddSingleton(ServerService);
+        services.AddSingleton(HttpApiClient);
         services.AddSingleton(this);
 
         // Configure the ftp server

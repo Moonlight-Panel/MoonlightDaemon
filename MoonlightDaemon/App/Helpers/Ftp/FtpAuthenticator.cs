@@ -14,19 +14,13 @@ public class FtpAuthenticator : IMembershipProviderAsync
 {
     private readonly ServerService ServerService;
     private readonly FtpService FtpService;
-    private readonly HttpClient HttpClient;
+    private readonly HttpApiClient<MoonlightException> HttpApiClient;
 
-    public FtpAuthenticator(ConfigService<ConfigV1> configService, ServerService serverService, FtpService ftpService)
+    public FtpAuthenticator(ServerService serverService, FtpService ftpService, HttpApiClient<MoonlightException> httpApiClient)
     {
         ServerService = serverService;
         FtpService = ftpService;
-
-        HttpClient = new()
-        {
-            BaseAddress = new Uri(configService.Get().Remote.Url + "api/servers/")
-        };
-
-        HttpClient.DefaultRequestHeaders.Add("Authorization", configService.Get().Remote.Token);
+        HttpApiClient = httpApiClient;
     }
 
     public async Task<MemberValidationResult> ValidateUserAsync(string username, string password)
@@ -69,7 +63,7 @@ public class FtpAuthenticator : IMembershipProviderAsync
             };
 
             // Perform login request to panel. This will throw a MoonlightException if failed
-            await HttpClient.SendHandled<MoonlightException>(HttpMethod.Post, "ftp", loginData);
+            await HttpApiClient.Post("api/servers/ftp", loginData);
 
             // If we reach this point, login was successful and we want to return this state
 
