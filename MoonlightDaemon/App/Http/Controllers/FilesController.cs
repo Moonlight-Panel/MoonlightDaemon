@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using MoonCore.Abstractions;
-using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Http.Resources;
 using MoonlightDaemon.App.Services;
@@ -89,7 +87,7 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        await fileSystem.CreateDirectory(path);
+        await fileSystem.CreateFile(path);
 
         return Ok();
     }
