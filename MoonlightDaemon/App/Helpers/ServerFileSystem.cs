@@ -1,4 +1,5 @@
 using Mono.Unix.Native;
+using MoonCore.Helpers;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Http.Resources;
 
@@ -113,6 +114,8 @@ public class ServerFileSystem
         if(File.Exists(fullPath))
             return;
         
+        EnsureParentDirectoryForFile(fullPath);
+        
         await File.WriteAllTextAsync(fullPath, "");
     }
 
@@ -133,8 +136,10 @@ public class ServerFileSystem
     {
         var fullPath = GetFullPath(path);
 
-        if (File.Exists(fullPath) && IsUnsafe(path))
+        if (File.Exists(fullPath) && IsUnsafe(fullPath))
             throw new UnsafeFileAccessException();
+        
+        EnsureParentDirectoryForFile(fullPath);
 
         await File.WriteAllTextAsync(fullPath, content);
     }
@@ -161,6 +166,8 @@ public class ServerFileSystem
         if (File.Exists(fullPath) && IsUnsafe(fullPath))
             throw new UnsafeFileAccessException(fullPath);
 
+        EnsureParentDirectoryForFile(fullPath);
+        
         var fs = File.Create(fullPath);
 
         dataStream.Position = 0;
@@ -168,6 +175,12 @@ public class ServerFileSystem
 
         await fs.FlushAsync();
         fs.Close();
+    }
+
+    private void EnsureParentDirectoryForFile(string fullPath)
+    {
+        var path = Formatter.ReplaceEnd(fullPath, Path.GetFileName(fullPath), "");
+        Directory.CreateDirectory(path);
     }
 
     private string FixPath(string path)
@@ -192,9 +205,18 @@ public class ServerFileSystem
     private bool IsUnsafe(string path)
     {
         var fi = new FileInfo(path);
-            
-        if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint) || !string.IsNullOrEmpty(fi.LinkTarget))
+
+        if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            Logger.Debug($"Symlink detected: {fi.FullName}");
             return true;
+        }
+
+        if (!string.IsNullOrEmpty(fi.LinkTarget))
+        {
+            Logger.Debug($"Symlink target detected: {fi.LinkTarget}");
+            return true;
+        }
 
         return false;
     }
