@@ -4,6 +4,7 @@ using MoonCore.Extensions;
 using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
+using MoonlightDaemon.App.Http.Middleware;
 using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Parsers;
 using MoonlightDaemon.App.Provider;
@@ -64,6 +65,8 @@ var app = builder.Build();
 app.UseRouting();
 app.MapControllers();
 app.UseWebSockets();
+
+app.UseMiddleware<ExceptionHandlerMiddleware>();
 
 // Auto start background services
 app.Services.StartBackgroundServices<Program>();

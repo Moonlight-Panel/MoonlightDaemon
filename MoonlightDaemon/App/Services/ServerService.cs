@@ -92,7 +92,8 @@ public class ServerService
             ServiceProvider = ServiceProvider,
             State = stateMachine,
             LockHandle = new SemaphoreSlim(1, 1),
-            Console = new()
+            Console = new(),
+            FileSystem = new(configuration.GetRuntimeVolumePath())
         };
 
         server.Console.OnNewLogMessage += async message =>

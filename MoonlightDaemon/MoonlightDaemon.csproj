@@ -15,7 +15,6 @@
 
     <ItemGroup>
       <Folder Include="App\Api\Moonlight\Resources\" />
-      <Folder Include="App\Http\Middleware\" />
     </ItemGroup>
 
     <ItemGroup>
