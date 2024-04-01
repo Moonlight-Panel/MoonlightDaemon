@@ -42,7 +42,7 @@ public class FtpAuthenticator : IMembershipProviderAsync
             var serverId = int.Parse(parts[1]);
             
             // Check if user reached the connections per user limit
-            if (!await FtpService.RegisterSession(realUsername))
+            if (!await FtpService.RegisterSession(GetSessionIdentifier(realUsername, serverId.ToString())))
             {
                 Logger.Debug($"{realUsername} triggered max connection limit");
                 return new MemberValidationResult(MemberValidationStatus.InvalidLogin);
@@ -103,9 +103,12 @@ public class FtpAuthenticator : IMembershipProviderAsync
     public async Task LogOutAsync(ClaimsPrincipal principal, CancellationToken cancellationToken = new())
     {
         var username = principal.Claims.First(x => x.Type == "username").Value;
+        var serverId = principal.Claims.First(x => x.Type == "serverId").Value;
         
         Logger.Debug($"Logout: {username}");
         
-        await FtpService.UnregisterSession(username);
+        await FtpService.UnregisterSession(GetSessionIdentifier(username, serverId));
     }
+
+    private string GetSessionIdentifier(string username, string serverId) => $"{username}.{serverId}";
 }

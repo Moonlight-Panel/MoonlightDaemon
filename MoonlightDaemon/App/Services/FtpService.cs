@@ -73,34 +73,34 @@ public class FtpService : IDisposable
         Logger.Info($"Ftp server listening on 0.0.0.0:{config.Port}");
     }
 
-    public Task<bool> RegisterSession(string username)
+    public Task<bool> RegisterSession(string identifier)
     {
         var config = ConfigService.Get().Ftp;
         
         lock (Sessions)
         {
-            if (Sessions.ContainsKey(username) && Sessions[username] >= config.MaxConnectionsPerUser)
+            if (Sessions.ContainsKey(identifier) && Sessions[identifier] >= config.MaxConnectionsPerServerAndUser)
                 return Task.FromResult(false);
             
-            if (Sessions.ContainsKey(username))
-                Sessions[username] += 1;
+            if (Sessions.ContainsKey(identifier))
+                Sessions[identifier] += 1;
             else
-                Sessions.Add(username, 1);
+                Sessions.Add(identifier, 1);
         }
         
         return Task.FromResult(true);
     }
 
-    public Task UnregisterSession(string username)
+    public Task UnregisterSession(string identifier)
     {
         lock (Sessions)
         {
-            if (Sessions.ContainsKey(username))
+            if (Sessions.ContainsKey(identifier))
             {
-                Sessions[username] =- 1;
+                Sessions[identifier] =- 1;
 
-                if (Sessions[username] < 1)
-                    Sessions.Remove(username);
+                if (Sessions[identifier] < 1)
+                    Sessions.Remove(identifier);
             }
         }
         
