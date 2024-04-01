@@ -3,6 +3,7 @@ using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Tar;
 using MoonCore.Helpers;
 using MoonlightDaemon.App.Extensions;
+using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Abstractions;
 
@@ -12,10 +13,10 @@ public class FileBackupProvider : IBackupProvider
 {
     public async Task<Backup> Create(Server server, int backupId)
     {
-        var volumePath = server.Configuration.GetRuntimeVolumePath();
+        //var volumePath = server.Configuration.GetRuntimeVolumePath();
         var backupPath = $"/var/lib/moonlight/backups/{backupId}.tar.gz";
 
-        await ArchiveDirectory(volumePath, backupPath);
+        await ArchiveServer(server.FileSystem, backupPath);
 
         return new Backup()
         {
@@ -62,7 +63,7 @@ public class FileBackupProvider : IBackupProvider
         await UnarchiveTar(backupPath, volumePath);
     }
 
-    private async Task ArchiveDirectory(string src, string pathToTar)
+    private async Task ArchiveServer(ServerFileSystem fileSystem, string pathToTar)
     {
         await using var outStream = File.Create(pathToTar);
         await using var gzoStream = new GZipOutputStream(outStream);
@@ -70,23 +71,46 @@ public class FileBackupProvider : IBackupProvider
 
         tarArchive.RootPath = "/";
 
-        await AddDirectoryToTar(tarArchive, src, src);
+        await AddDirectoryToTarNew(tarArchive, fileSystem, "/");
     }
-
-    private async Task AddDirectoryToTar(TarArchive archive, string src, string rootPath)
+    
+    private async Task AddDirectoryToTarNew(TarArchive archive, ServerFileSystem fileSystem, string root)
     {
-        foreach (var file in Directory.GetFiles(src))
+        var items = await fileSystem.List(root);
+        
+        foreach (var item in items)
         {
-            var entry = TarEntry.CreateEntryFromFile(file);
+            if (item.IsFile)
+            {
+                var fullPath = fileSystem.GetRealPath(root + item.Name);
+                var fi = new FileInfo(fullPath);
 
-            entry.Name = Formatter.ReplaceStart(file, rootPath, "");
-            
-            archive.WriteEntry(entry, false);
-        }
+                if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint) && string.IsNullOrEmpty(fi.LinkTarget))
+                    continue; // => ignore
 
-        foreach (var directory in Directory.GetDirectories(src))
-        {
-            await AddDirectoryToTar(archive, directory, rootPath);
+                if (!string.IsNullOrEmpty(fi.LinkTarget))
+                {
+                    if (fi.LinkTarget.Contains(".."))
+                        continue; // => ignore
+
+                    if (fi.LinkTarget.StartsWith("/") && !fi.LinkTarget.StartsWith("/home/container"))
+                        continue; // => ignore
+
+                    var linkTarget = fi.ResolveLinkTarget(true);
+
+                    if (linkTarget == null)
+                        continue; // => ignore
+
+                    if (!linkTarget.FullName.StartsWith(fileSystem.GetRealPath("/")))
+                        continue; // ignore
+                }
+                
+                var entry = TarEntry.CreateEntryFromFile(fullPath);
+                entry.Name = root + item.Name;
+                archive.WriteEntry(entry, false);
+            }
+            else
+                await AddDirectoryToTarNew(archive, fileSystem, root + item.Name + "/");
         }
     }
 

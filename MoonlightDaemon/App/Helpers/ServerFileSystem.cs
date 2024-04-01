@@ -16,7 +16,7 @@ public class ServerFileSystem
     
     public Task<FileEntry[]> List(string path)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
 
         var result = new List<FileEntry>();
         
@@ -53,7 +53,7 @@ public class ServerFileSystem
 
     public Task DeleteFile(string path)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
 
         if(!File.Exists(fullPath))
             return Task.CompletedTask;
@@ -70,7 +70,7 @@ public class ServerFileSystem
 
     public Task DeleteDirectory(string path)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
 
         if (!Directory.Exists(fullPath))
             throw new DirectoryNotFoundException();
@@ -82,8 +82,8 @@ public class ServerFileSystem
 
     public Task Move(string from, string to)
     {
-        var fromFull = GetFullPath(from);
-        var toFull = GetFullPath(to);
+        var fromFull = GetRealPath(from);
+        var toFull = GetRealPath(to);
 
         if (File.Exists(fromFull))
         {
@@ -100,7 +100,7 @@ public class ServerFileSystem
 
     public Task CreateDirectory(string path)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
 
         Directory.CreateDirectory(fullPath);
         
@@ -109,7 +109,7 @@ public class ServerFileSystem
 
     public async Task CreateFile(string path)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
         
         if(File.Exists(fullPath))
             return;
@@ -121,7 +121,7 @@ public class ServerFileSystem
 
     public async Task<string> ReadFile(string path)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
 
         if (!File.Exists(fullPath))
             throw new FileNotFoundException();
@@ -134,7 +134,7 @@ public class ServerFileSystem
 
     public async Task WriteFile(string path, string content)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
 
         if (File.Exists(fullPath) && IsUnsafe(fullPath))
             throw new UnsafeFileAccessException();
@@ -146,7 +146,7 @@ public class ServerFileSystem
 
     public Task<Stream> ReadFileStream(string path)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
         
         if (!File.Exists(fullPath))
             throw new FileNotFoundException();
@@ -161,7 +161,7 @@ public class ServerFileSystem
 
     public async Task WriteFileStream(string path, Stream dataStream)
     {
-        var fullPath = GetFullPath(path);
+        var fullPath = GetRealPath(path);
         
         if (File.Exists(fullPath) && IsUnsafe(fullPath))
             throw new UnsafeFileAccessException(fullPath);
@@ -196,7 +196,7 @@ public class ServerFileSystem
         return result;
     }
 
-    private string GetFullPath(string path)
+    public string GetRealPath(string path)
     {
         var fixedPath = FixPath(path);
         return RootPath + fixedPath;
