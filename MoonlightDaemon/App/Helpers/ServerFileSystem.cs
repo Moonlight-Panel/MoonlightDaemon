@@ -13,17 +13,20 @@ public class ServerFileSystem
     {
         RootPath = rootPath;
     }
-    
+
     public Task<FileEntry[]> List(string path)
     {
+        if (IsUnsafe(path))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
 
         var result = new List<FileEntry>();
-        
+
         foreach (var file in Directory.GetFiles(fullPath))
         {
             var fi = new FileInfo(file);
-            
+
             result.Add(new()
             {
                 Name = fi.Name,
@@ -37,7 +40,7 @@ public class ServerFileSystem
         foreach (var directory in Directory.GetDirectories(fullPath))
         {
             var di = new DirectoryInfo(directory);
-            
+
             result.Add(new()
             {
                 Name = di.Name,
@@ -53,122 +56,143 @@ public class ServerFileSystem
 
     public Task DeleteFile(string path)
     {
+        var dirOfTarget = Formatter.ReplaceEnd(path, Path.GetFileName(path), "");
+
+        if (IsUnsafe(dirOfTarget))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
 
-        if(!File.Exists(fullPath))
-            return Task.CompletedTask;
-        
-        var fi = new FileInfo(fullPath);
-
-        if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint) || !string.IsNullOrEmpty(fi.LinkTarget))
+        if (IsSymlink(fullPath))
             Syscall.unlink(fullPath);
-        else
+        else if(File.Exists(fullPath))
             File.Delete(fullPath);
-        
+
         return Task.CompletedTask;
     }
 
     public Task DeleteDirectory(string path)
     {
+        var dirOfTarget = Formatter.ReplaceEnd(path, Path.GetFileName(path), "");
+
+        if (IsUnsafe(dirOfTarget))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
 
-        if (!Directory.Exists(fullPath))
-            throw new DirectoryNotFoundException();
-        
-        Directory.Delete(fullPath, true);
-        
+        if (IsSymlink(fullPath))
+            Syscall.unlink(fullPath);
+        else if (Directory.Exists(fullPath))
+            Directory.Delete(fullPath, true);
+
         return Task.CompletedTask;
     }
 
     public Task Move(string from, string to)
     {
+        if (IsUnsafe(from))
+            throw new UnsafeFileAccessException();
+
+        if (IsUnsafe(to))
+            throw new UnsafeFileAccessException();
+
         var fromFull = GetRealPath(from);
         var toFull = GetRealPath(to);
 
         if (File.Exists(fromFull))
         {
-            if (IsUnsafe(fromFull))
-                throw new UnsafeFileAccessException();
-            
             File.Move(fromFull, toFull);
         }
         else
             Directory.Move(fromFull, toFull);
-        
+
         return Task.CompletedTask;
     }
 
     public Task CreateDirectory(string path)
     {
+        if (IsUnsafe(path))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
 
         Directory.CreateDirectory(fullPath);
-        
+
         return Task.CompletedTask;
     }
 
     public async Task CreateFile(string path)
     {
+        if (IsUnsafe(path))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
-        
-        if(File.Exists(fullPath))
+
+        if (File.Exists(fullPath))
             return;
-        
+
         EnsureParentDirectoryForFile(fullPath);
-        
+
         await File.WriteAllTextAsync(fullPath, "");
     }
 
     public async Task<string> ReadFile(string path)
     {
+        if (IsUnsafe(path))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
 
         if (!File.Exists(fullPath))
             throw new FileNotFoundException();
 
-        if (IsUnsafe(fullPath))
-            throw new UnsafeFileAccessException();
+        await using var fs = await SafeReadFileStream(fullPath);
+        using var streamReader = new StreamReader(fs);
 
-        return await File.ReadAllTextAsync(fullPath);
+        return await streamReader.ReadToEndAsync();
     }
 
     public async Task WriteFile(string path, string content)
     {
+        if (IsUnsafe(path))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
 
         if (File.Exists(fullPath) && IsUnsafe(fullPath))
             throw new UnsafeFileAccessException();
-        
+
         EnsureParentDirectoryForFile(fullPath);
 
-        await File.WriteAllTextAsync(fullPath, content);
+        await using var fs = await SafeWriteFileStream(path);
+        await using var streamWriter = new StreamWriter(fs);
+
+        await streamWriter.WriteAsync(content);
     }
 
-    public Task<Stream> ReadFileStream(string path)
+    public async Task<Stream> ReadFileStream(string path)
     {
+        if (IsUnsafe(path))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
-        
+
         if (!File.Exists(fullPath))
             throw new FileNotFoundException();
 
-        if (IsUnsafe(fullPath))
-            throw new UnsafeFileAccessException(fullPath);
-
-        var fs = File.Open(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        
-        return Task.FromResult<Stream>(fs);
+        return await SafeReadFileStream(fullPath);
     }
 
     public async Task WriteFileStream(string path, Stream dataStream)
     {
+        if (IsUnsafe(path))
+            throw new UnsafeFileAccessException();
+
         var fullPath = GetRealPath(path);
-        
-        if (File.Exists(fullPath) && IsUnsafe(fullPath))
-            throw new UnsafeFileAccessException(fullPath);
 
         EnsureParentDirectoryForFile(fullPath);
-        
-        var fs = File.Create(fullPath);
+
+        var fs = await SafeWriteFileStream(fullPath);
 
         dataStream.Position = 0;
         await dataStream.CopyToAsync(fs);
@@ -192,7 +216,7 @@ public class ServerFileSystem
 
         result = result.Replace("..", "");
         result = result.Replace("//", "/");
-        
+
         return result;
     }
 
@@ -202,22 +226,72 @@ public class ServerFileSystem
         return RootPath + fixedPath;
     }
 
-    private bool IsUnsafe(string path)
+    private bool IsUnsafe(string path) // Checks if any part of the path is a symlink
     {
-        var fi = new FileInfo(path);
+        var previousPath = "/";
 
-        if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        foreach (var pathPart in path.Split("/"))
         {
-            Logger.Debug($"Symlink detected: {fi.FullName}");
-            return true;
-        }
+            var fullPath = GetRealPath(previousPath + pathPart);
 
-        if (!string.IsNullOrEmpty(fi.LinkTarget))
-        {
-            Logger.Debug($"Symlink target detected: {fi.LinkTarget}");
-            return true;
+            if (IsSymlink(fullPath))
+                return true;
+
+            previousPath += pathPart + "/";
         }
 
         return false;
+    }
+
+    private bool IsSymlink(string path) // Check for a symlink at the path
+    {
+        if (File.Exists(path))
+        {
+            var fi = new FileInfo(path);
+
+            if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                return true;
+
+            if (!string.IsNullOrEmpty(fi.LinkTarget))
+                return true;
+        }
+        else if (Directory.Exists(path))
+        {
+            var di = new DirectoryInfo(path);
+
+            if (di.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                return true;
+
+            if (!string.IsNullOrEmpty(di.LinkTarget))
+                return true;
+        }
+
+        return false;
+    }
+
+    private Task<Stream> SafeReadFileStream(string fullPath)
+    {
+        var fi = new FileInfo(fullPath);
+
+        // Double check if the accessed file is actually inside the server data directory
+        if (!fi.FullName.StartsWith(RootPath))
+            throw new UnsafeFileAccessException();
+
+        var fs = fi.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+
+        return Task.FromResult<Stream>(fs);
+    }
+
+    private Task<Stream> SafeWriteFileStream(string fullPath)
+    {
+        var fi = new FileInfo(fullPath);
+
+        // Double check if the accessed file is actually inside the server data directory
+        if (!fi.FullName.StartsWith(RootPath))
+            throw new UnsafeFileAccessException();
+
+        var fs = fi.Open(FileMode.Create, FileAccess.Write, FileShare.Read);
+
+        return Task.FromResult<Stream>(fs);
     }
 }
