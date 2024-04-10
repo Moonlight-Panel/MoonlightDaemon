@@ -159,12 +159,9 @@ public class ServerFileSystem
 
         var fullPath = GetRealPath(path);
 
-        if (File.Exists(fullPath) && IsUnsafe(fullPath))
-            throw new UnsafeFileAccessException();
-
         EnsureParentDirectoryForFile(fullPath);
 
-        await using var fs = await SafeWriteFileStream(path);
+        await using var fs = await SafeWriteFileStream(fullPath);
         await using var streamWriter = new StreamWriter(fs);
 
         await streamWriter.WriteAsync(content);
@@ -230,7 +227,7 @@ public class ServerFileSystem
     {
         var previousPath = "/";
 
-        foreach (var pathPart in path.Split("/"))
+        foreach (var pathPart in path.TrimEnd('/').Split("/"))
         {
             var fullPath = GetRealPath(previousPath + pathPart);
 
