@@ -1,3 +1,4 @@
+using System.Globalization;
 using Docker.DotNet;
 using MoonCore.Helpers;
 using MoonCore.Extensions;
@@ -10,6 +11,11 @@ using MoonlightDaemon.App.Parsers;
 using MoonlightDaemon.App.Provider;
 using MoonlightDaemon.App.Services;
 
+// Set en culture
+CultureInfo.CurrentCulture = CultureInfo.GetCultureInfoByIetfLanguageTag("en");
+CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfoByIetfLanguageTag("en");
+
+// Ensure directories
 Directory.CreateDirectory("/etc/moonlight");
 Directory.CreateDirectory("/var/lib/moonlight");
 Directory.CreateDirectory("/var/lib/moonlight/volumes");
