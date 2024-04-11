@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography.X509Certificates;
 using Docker.DotNet;
 using MoonCore.Helpers;
 using MoonCore.Extensions;
@@ -37,6 +38,24 @@ var config =
     new ConfigurationBuilder().AddJsonString(
         "{\"LogLevel\":{\"Default\":\"Information\",\"Microsoft.AspNetCore\":\"Warning\"}}");
 builder.Logging.AddConfiguration(config.Build());
+
+//
+var httpConfig = configService.Get().Http;
+
+X509Certificate2? certificate = default;
+
+if (httpConfig.UseSsl)
+{
+    var pathPart = $"/etc/letsencrypt/live/{httpConfig.Fqdn}";
+    certificate = X509Certificate2.CreateFromPemFile($"{pathPart}/cert.pem", $"{pathPart}/privkey.pem");
+}
+
+builder.WebHost.ConfigureMoonCoreHttp(
+    httpConfig.HttpPort,
+    httpConfig.UseSsl,
+    httpConfig.HttpPort,
+    certificate,
+    httpConfig.UseSsl);
 
 //
 Logger.Info("Starting MoonlightDaemon v2");
@@ -102,12 +121,4 @@ Task.Run(async () =>
     await ftpService.Start();
 });
 
-string bindUrl;
-var httpConfig = configService.Get().Http;
-
-if (httpConfig.UseSsl)
-    bindUrl = $"https://0.0.0.0:{httpConfig.HttpPort}";
-else
-    bindUrl = $"http://0.0.0.0:{httpConfig.HttpPort}";
-
-app.Run(bindUrl);
+app.Run();
