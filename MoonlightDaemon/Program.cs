@@ -92,6 +92,7 @@ app.MapControllers();
 app.UseWebSockets();
 
 app.UseMiddleware<ExceptionHandlerMiddleware>();
+app.UseMiddleware<TokenAuthenticationMiddleware>();
 
 // Auto start background services
 app.Services.StartBackgroundServices<Program>();
