@@ -22,19 +22,22 @@ public class ServersController : Controller
     private readonly MoonlightService MoonlightService;
     private readonly HttpApiClient<MoonlightException> HttpApiClient;
     private readonly JwtService<DaemonJwtType> JwtService;
+    private readonly BootService BootService;
 
     public ServersController(
         ServerService serverService,
         HttpApiClient<MoonlightException> httpApiClient,
         BackupService backupService,
         MoonlightService moonlightService,
-        JwtService<DaemonJwtType> jwtService)
+        JwtService<DaemonJwtType> jwtService,
+        BootService bootService)
     {
         ServerService = serverService;
         HttpApiClient = httpApiClient;
         BackupService = backupService;
         MoonlightService = moonlightService;
         JwtService = jwtService;
+        BootService = bootService;
     }
 
     [HttpPost("{id:int}/sync")]
@@ -166,6 +169,9 @@ public class ServersController : Controller
     [HttpGet("{id:int}/ws")]
     public async Task<ActionResult> Ws(int id)
     {
+        if (!BootService.IsBooted)
+            return StatusCode(503);
+        
         var server = await ServerService.GetById(id);
 
         if (server == null)

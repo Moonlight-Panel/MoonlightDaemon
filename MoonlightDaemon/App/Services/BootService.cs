@@ -12,20 +12,20 @@ namespace MoonlightDaemon.App.Services;
 [Singleton]
 public class BootService
 {
+    public bool IsBooted { get; private set; } = false;
+    
     private readonly HttpApiClient<MoonlightException> ApiClient;
     private readonly ServerService ServerService;
     private readonly ConfigService<ConfigV1> ConfigService;
-    private readonly MoonlightService MoonlightService;
 
     public BootService(
         HttpApiClient<MoonlightException> apiClient,
         ServerService serverService,
-        ConfigService<ConfigV1> configService, MoonlightService moonlightService)
+        ConfigService<ConfigV1> configService)
     {
         ApiClient = apiClient;
         ServerService = serverService;
         ConfigService = configService;
-        MoonlightService = moonlightService;
     }
 
     public async Task Boot()
@@ -59,6 +59,9 @@ public class BootService
 
     private async Task Start() // This method performs some cleanup operation, in case the node was booted before
     {
+        // Reset boot state
+        IsBooted = false;
+        
         Logger.Info("Preparing for boot");
 
         await ApiClient.Post("api/servers/node/notify/start");
@@ -119,5 +122,8 @@ public class BootService
         await ServerService.Restore();
         
         await ApiClient.Post("api/servers/node/notify/finish");
+        
+        // Set boot state
+        IsBooted = true;
     }
 }
