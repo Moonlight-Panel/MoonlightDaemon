@@ -54,6 +54,39 @@ public static class ServerConfigurationExtensions
             ReadOnly = false,
             Type = "bind"
         });
+        
+        // -- Ports
+        var config = configService.Get();
+
+        if (!configuration.Network.DisablePublic)
+        {
+            container.ExposedPorts = new Dictionary<string, EmptyStruct>();
+            container.HostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>();
+
+            foreach (var port in configuration.Allocations.Select(x => x.Port))
+            {
+                container.ExposedPorts.Add($"{port}/tcp", new());
+                container.ExposedPorts.Add($"{port}/udp", new());
+
+                container.HostConfig.PortBindings.Add($"{port}/tcp", new List<PortBinding>
+                {
+                    new()
+                    {
+                        HostPort = port.ToString(),
+                        HostIP = config.Docker.HostBindIp
+                    }
+                });
+            
+                container.HostConfig.PortBindings.Add($"{port}/udp", new List<PortBinding>
+                {
+                    new()
+                    {
+                        HostPort = port.ToString(),
+                        HostIP = config.Docker.HostBindIp
+                    }
+                });
+            }
+        }
 
         return container;
     }
@@ -183,38 +216,6 @@ public static class ServerConfigurationExtensions
             Type = "json-file", // We need to use this provider, as the GetLogs endpoint needs it
             Config = new Dictionary<string, string>()
         };
-        
-        // -- Ports
-
-        if (!configuration.Network.DisablePublic)
-        {
-            container.ExposedPorts = new Dictionary<string, EmptyStruct>();
-            container.HostConfig.PortBindings = new Dictionary<string, IList<PortBinding>>();
-
-            foreach (var port in configuration.Allocations.Select(x => x.Port))
-            {
-                container.ExposedPorts.Add($"{port}/tcp", new());
-                container.ExposedPorts.Add($"{port}/udp", new());
-
-                container.HostConfig.PortBindings.Add($"{port}/tcp", new List<PortBinding>
-                {
-                    new()
-                    {
-                        HostPort = port.ToString(),
-                        HostIP = config.Docker.HostBindIp
-                    }
-                });
-            
-                container.HostConfig.PortBindings.Add($"{port}/udp", new List<PortBinding>
-                {
-                    new()
-                    {
-                        HostPort = port.ToString(),
-                        HostIP = config.Docker.HostBindIp
-                    }
-                });
-            }
-        }
         
         // - Labels
         container.Labels = new Dictionary<string, string>();
