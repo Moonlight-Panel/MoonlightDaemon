@@ -53,9 +53,21 @@ public static class ServerInstallExtensions
             }
             
             // Ensure the install docker image exists
-            await server.Log("Downloading docker image");
-            await server.EnsureImageExists(configuration.DockerImage);
-            await server.Log("Downloaded docker image");
+            try
+            {
+                await server.Log("Downloading docker image");
+                await server.EnsureImageExists(configuration.DockerImage);
+                await server.Log("Downloaded docker image");
+            }
+            catch (Exception e)
+            {
+                Logger.Error($"An error occured while downloading docker image for install container for server {server.Configuration.Id}: '{configuration.DockerImage}'");
+                Logger.Error(e);
+                
+                await server.Log("Failed to download docker image for installation container. See daemon logs for more information");
+                
+                return;
+            }
             
             // Write the install script to file
             var installScriptPath = PathBuilder.File(server.Configuration.GetInstallVolumePath(), "install.sh");
@@ -88,8 +100,11 @@ public static class ServerInstallExtensions
                 // Start container
                 await client.Containers.StartContainerAsync(containerName, new());
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Logger.Error($"Starting the installation of server {server.Configuration.Id} has failed");
+                Logger.Error(e);
+                
                 await client.Containers.RemoveContainerAsync(containerName, new());
                 await server.Log("Starting the installation has failed");
                 
@@ -115,10 +130,22 @@ public static class ServerInstallExtensions
 
             // Container
             var client = server.ServiceProvider.GetRequiredService<DockerClient>();
-            await client.Containers.RemoveContainerAsync($"moonlight-install-{server.Configuration.Id}", new());
 
-            await server.Log("Removed install container");
-            
+            try
+            {
+                await client.Containers.RemoveContainerAsync($"moonlight-install-{server.Configuration.Id}", new());
+                await server.Log("Removed install container");
+            }
+            catch (DockerContainerNotFoundException)
+            {
+                /* ignored */
+            }
+            catch (Exception e)
+            {
+                Logger.Error($"An error occured while finalizing the installation of the server {server.Configuration.Id}");
+                Logger.Error(e);
+            }
+
             await server.State.TransitionTo(ServerState.Offline);
         });
     }

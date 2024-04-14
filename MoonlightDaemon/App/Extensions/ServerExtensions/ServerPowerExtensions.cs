@@ -1,6 +1,5 @@
 using Docker.DotNet;
 using Docker.DotNet.Models;
-using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Services;

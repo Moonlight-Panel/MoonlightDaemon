@@ -1,5 +1,6 @@
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using MoonCore.Helpers;
 using MoonCore.Services;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Models;
@@ -31,9 +32,20 @@ public static class ServerCreateExtensions
 
         if (server.Configuration.Image.PullDockerImage)
         {
-            await server.Log("Downloading docker image");
-            await server.EnsureImageExists(server.Configuration.Image.DockerImage);
-            await server.Log("Downloaded docker image");
+            try
+            {
+                await server.Log("Downloading docker image");
+                await server.EnsureImageExists(server.Configuration.Image.DockerImage);
+                await server.Log("Downloaded docker image");
+            }
+            catch (DockerApiException e)
+            {
+                Logger.Error($"An error occured while downloading image for server {server.Configuration.Id}: '{server.Configuration.Image.DockerImage}'");
+                Logger.Error(e);
+                
+                await server.Log("Failed to download docker image. See daemon logs for more information");
+                throw;
+            }
         }
         else
             await server.Log("Skipping docker image download");
