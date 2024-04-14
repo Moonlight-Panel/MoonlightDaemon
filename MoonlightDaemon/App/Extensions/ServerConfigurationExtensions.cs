@@ -202,7 +202,11 @@ public static class ServerConfigurationExtensions
         container.HostConfig.OomKillDisable = !configuration.Limits.EnableOomKill;
         
         // -- DNS
-        container.HostConfig.DNS = config.Docker.DnsServers;
+        container.HostConfig.DNS = config.Docker.DnsServers.Any() ? config.Docker.DnsServers : new List<string>()
+        {
+            "1.1.1.1",
+            "9.9.9.9"
+        };
 
         // -- Tmpfs
         container.HostConfig.Tmpfs = new Dictionary<string, string>()
