@@ -44,7 +44,7 @@ public static class ServerCreateExtensions
         await server.Log("Creating container");
         await client.Containers.CreateContainerAsync(container);
         
-        // CHeck and connect container to network
+        // Check and connect container to network
         if (server.Configuration.Network.Enable)
         {
             await server.Log("Ensuring network connection");
