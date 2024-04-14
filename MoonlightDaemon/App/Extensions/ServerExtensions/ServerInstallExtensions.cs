@@ -83,8 +83,18 @@ public static class ServerInstallExtensions
 
             await server.Console.Attach(stream);
 
-            // Start container
-            await client.Containers.StartContainerAsync(containerName, new());
+            try
+            {
+                // Start container
+                await client.Containers.StartContainerAsync(containerName, new());
+            }
+            catch (Exception)
+            {
+                await client.Containers.RemoveContainerAsync(containerName, new());
+                await server.Log("Starting the installation has failed");
+                
+                throw;
+            }
 
             // Set new state and release lock
             await server.State.TransitionTo(ServerState.Installing);
