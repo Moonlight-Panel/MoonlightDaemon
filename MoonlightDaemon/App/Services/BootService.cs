@@ -90,19 +90,19 @@ public class BootService
         await webSocket.ConnectAsync(new Uri(remoteUrl + "api/servers/ws"), CancellationToken.None);
         
         // Setup ws packet connection
-        var wsPacketConnection = new WsPacketConnection(webSocket);
+        var websocketStream = new AdvancedWebsocketStream(webSocket);
         
         // Register packets
-        await wsPacketConnection.RegisterPacket<int>("amount");
-        await wsPacketConnection.RegisterPacket<ServerConfiguration>("serverConfiguration");
+        websocketStream.RegisterPacket<int>(1);
+        websocketStream.RegisterPacket<ServerConfiguration>(2);
         
         // STart receiving the servers
-        var amount = await wsPacketConnection.Receive<int>();
+        var amount = await websocketStream.ReceivePacket<int>();
         Logger.Info($"About to receive {amount} servers");
 
         for (int i = 0; i < amount; i++)
         {
-            var configuration = await wsPacketConnection.Receive<ServerConfiguration>();
+            var configuration = await websocketStream.ReceivePacket<ServerConfiguration>();
             
             if(configuration == null)
                 continue;
@@ -113,7 +113,7 @@ public class BootService
         }
 
         Logger.Info("Fetched servers. Closing websocket connection");
-        await wsPacketConnection.Close();
+        await websocketStream.Close();
     }
 
     private async Task Finish()

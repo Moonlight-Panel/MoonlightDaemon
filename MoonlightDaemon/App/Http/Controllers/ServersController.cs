@@ -181,14 +181,14 @@ public class ServersController : Controller
             return BadRequest("Only websocket connections are allowed at this endpoint");
 
         var websocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-        var packetConnection = new WsPacketConnection(websocket);
+        var websocketStream = new Helpers.AdvancedWebsocketStream(websocket);
 
-        await packetConnection.RegisterPacket<string>("output");
-        await packetConnection.RegisterPacket<ServerState>("state");
-        await packetConnection.RegisterPacket<ServerStats>("stats");
+        websocketStream.RegisterPacket<string>(1);
+        websocketStream.RegisterPacket<ServerState>(2);
+        websocketStream.RegisterPacket<ServerStats>(3);
 
         // Transfer current state
-        await packetConnection.Send(server.State.State);
+        await websocketStream.SendPacket(server.State.State);
 
         // Transfer cached messages
         // In order to prevent a slow loading console on slow internet connections,
@@ -203,7 +203,7 @@ public class ServersController : Controller
             foreach (var message in messageChunk)
                 combinedMessage += message + "\n";
             
-            await packetConnection.Send(combinedMessage);
+            await websocketStream.SendPacket(combinedMessage);
         }
 
         // Stats
@@ -213,14 +213,14 @@ public class ServersController : Controller
         {
             try
             {
-                await packetConnection.Send(state);
+                await websocketStream.SendPacket(state);
             }
             catch (Exception e)
             {
                 Logger.Warn("An error occured while sending state packet");
                 Logger.Warn(e);
 
-                await packetConnection.Close();
+                await websocketStream.Close();
             }
 
             if (state == ServerState.Starting)
@@ -229,14 +229,14 @@ public class ServersController : Controller
                 {
                     try
                     {
-                        await packetConnection.Send(stats);
+                        await websocketStream.SendPacket(stats);
                     }
                     catch (Exception e)
                     {
                         Logger.Warn("An error occured while sending stats packet");
                         Logger.Warn(e);
 
-                        await packetConnection.Close();
+                        await websocketStream.Close();
                     }
                 });
             }
@@ -246,14 +246,14 @@ public class ServersController : Controller
         {
             try
             {
-                await packetConnection.Send(message);
+                await websocketStream.SendPacket(message);
             }
             catch (Exception e)
             {
                 Logger.Warn("An error occured while sending message packet");
                 Logger.Warn(e);
 
-                await packetConnection.Close();
+                await websocketStream.Close();
             }
         }
 
@@ -266,19 +266,19 @@ public class ServersController : Controller
             {
                 try
                 {
-                    await packetConnection.Send(stats);
+                    await websocketStream.SendPacket(stats);
                 }
                 catch (Exception e)
                 {
                     Logger.Warn("An error occured while sending stats packet");
                     Logger.Warn(e);
 
-                    await packetConnection.Close();
+                    await websocketStream.Close();
                 }
             });
         }
 
-        await packetConnection.WaitForClose();
+        await websocketStream.WaitForClose();
 
         server.State.OnTransitioned -= HandleStateChange;
         server.Console.OnNewLogMessage -= HandleNewMessage;
