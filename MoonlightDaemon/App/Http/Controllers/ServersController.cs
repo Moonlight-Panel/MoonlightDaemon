@@ -181,7 +181,7 @@ public class ServersController : Controller
             return BadRequest("Only websocket connections are allowed at this endpoint");
 
         var websocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-        var websocketStream = new Helpers.AdvancedWebsocketStream(websocket);
+        var websocketStream = new AdvancedWebsocketStream(websocket);
 
         websocketStream.RegisterPacket<string>(1);
         websocketStream.RegisterPacket<ServerState>(2);
@@ -196,7 +196,7 @@ public class ServersController : Controller
 
         var messages = await server.Console.GetAllLogMessages();
         
-        foreach (var messageChunk in messages.Chunk(10))
+        foreach (var messageChunk in messages.Chunk(20))
         {
             var combinedMessage = "";
 
