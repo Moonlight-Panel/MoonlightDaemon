@@ -1,9 +1,11 @@
+using System.Net.WebSockets;
 using Microsoft.AspNetCore.Mvc;
 using MoonCore.Helpers;
 using MoonCore.Services;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Extensions.ServerExtensions;
+using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Http.Requests;
 using MoonlightDaemon.App.Http.Resources;
 using MoonlightDaemon.App.Models;
@@ -167,63 +169,121 @@ public class ServersController : Controller
     }
 
     [HttpGet("{id:int}/ws")]
-    public async Task<ActionResult> Ws(int id)
+    public async Task Ws(int id)
     {
         if (!BootService.IsBooted)
-            return StatusCode(503);
+        {
+            Response.StatusCode = 503;
+            return;
+        }
         
         var server = await ServerService.GetById(id);
 
         if (server == null)
-            return NotFound("No server with this id found");
-
-        if (!HttpContext.WebSockets.IsWebSocketRequest)
-            return BadRequest("Only websocket connections are allowed at this endpoint");
-
-        var websocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-        var websocketStream = new AdvancedWebsocketStream(websocket);
-
-        websocketStream.RegisterPacket<string>(1);
-        websocketStream.RegisterPacket<ServerState>(2);
-        websocketStream.RegisterPacket<ServerStats>(3);
-
-        // Transfer current state
-        await websocketStream.SendPacket(server.State.State);
-
-        // Transfer cached messages
-        // In order to prevent a slow loading console on slow internet connections,
-        // we build all log messages into a multiple message update packets.
-
-        var messages = await server.Console.GetAllLogMessages();
-        
-        foreach (var messageChunk in messages.Chunk(20))
         {
-            var combinedMessage = "";
-
-            foreach (var message in messageChunk)
-                combinedMessage += message + "\n";
-            
-            await websocketStream.SendPacket(combinedMessage);
+            Response.StatusCode = 404;
+            await Response.WriteAsync("No server with this id found");
+            return;
         }
 
-        // Stats
-        CancellationTokenSource? statsCancel = default;
-
-        async Task HandleStateChange(ServerState state)
+        if (!HttpContext.WebSockets.IsWebSocketRequest)
         {
-            try
-            {
-                await websocketStream.SendPacket(state);
-            }
-            catch (Exception e)
-            {
-                Logger.Warn("An error occured while sending state packet");
-                Logger.Warn(e);
+            Response.StatusCode = 400;
+            await Response.WriteAsync("Only websocket connections are allowed at this endpoint");
+            return;
+        }
 
-                await websocketStream.Close();
+        var websocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
+        var serverWs = new WsServerConsole(websocket, server);
+
+        await serverWs.Work();
+        
+        Logger.Debug("Ws exited");
+
+        /*
+        var websocketStream = new AdvancedWebsocketStream(websocket);
+
+        try
+        {
+            websocketStream.RegisterPacket<string>(1);
+            websocketStream.RegisterPacket<ServerState>(2);
+            websocketStream.RegisterPacket<ServerStats>(3);
+
+            // Transfer current state
+            await websocketStream.SendPacket(server.State.State);
+
+            // Transfer cached messages
+            // In order to prevent a slow loading console on slow internet connections,
+            // we build all log messages into a multiple message update packets.
+
+            var messages = await server.Console.GetAllLogMessages();
+
+            foreach (var messageChunk in messages.Chunk(20))
+            {
+                var combinedMessage = "";
+
+                foreach (var message in messageChunk)
+                    combinedMessage += message + "\n";
+
+                await websocketStream.SendPacket(combinedMessage);
             }
 
-            if (state == ServerState.Starting)
+            // Stats
+            CancellationTokenSource? statsCancel = default;
+
+            async Task HandleStateChange(ServerState state)
+            {
+                try
+                {
+                    await websocketStream.SendPacket(state);
+                }
+                catch (Exception e)
+                {
+                    Logger.Warn("An error occured while sending state packet");
+                    Logger.Warn(e);
+
+                    await websocketStream.Close();
+                }
+
+                if (state == ServerState.Starting)
+                {
+                    statsCancel = await server.GetStatsStream(async stats =>
+                    {
+                        try
+                        {
+                            await websocketStream.SendPacket(stats);
+                        }
+                        catch (Exception e)
+                        {
+                            Logger.Warn("An error occured while sending stats packet");
+                            Logger.Warn(e);
+
+                            await websocketStream.Close();
+                        }
+                    });
+                }
+            }
+
+            async Task HandleNewMessage(string message)
+            {
+                try
+                {
+                    await websocketStream.SendPacket(message);
+                }
+                catch (Exception e)
+                {
+                    Logger.Warn("An error occured while sending message packet");
+                    Logger.Warn(e);
+
+                    Logger.Debug(websocket.State.ToString());
+                    await websocket.CloseAsync(WebSocketCloseStatus.Empty, null, CancellationToken.None);
+                }
+            }
+
+            server.State.OnTransitioned += HandleStateChange;
+            server.Console.OnNewLogMessage += HandleNewMessage;
+
+            if (server.State.State != ServerState.Offline && server.State.State != ServerState.Join2Start)
             {
                 statsCancel = await server.GetStatsStream(async stats =>
                 {
@@ -236,57 +296,27 @@ public class ServersController : Controller
                         Logger.Warn("An error occured while sending stats packet");
                         Logger.Warn(e);
 
-                        await websocketStream.Close();
+                        await websocket.CloseAsync(WebSocketCloseStatus.Empty, null, CancellationToken.None);
                     }
                 });
             }
+
+            await websocketStream.WaitForClose();
+
+            server.State.OnTransitioned -= HandleStateChange;
+            server.Console.OnNewLogMessage -= HandleNewMessage;
+
+            if (statsCancel != null)
+                statsCancel.Cancel();
         }
-        
-        async Task HandleNewMessage(string message)
+        catch (Exception e)
         {
-            try
-            {
-                await websocketStream.SendPacket(message);
-            }
-            catch (Exception e)
-            {
-                Logger.Warn("An error occured while sending message packet");
-                Logger.Warn(e);
+            if(websocket.State == WebSocketState.Open)
+                await websocket.CloseAsync(WebSocketCloseStatus.Empty, null, CancellationToken.None);
 
-                await websocketStream.Close();
-            }
-        }
-
-        server.State.OnTransitioned += HandleStateChange;
-        server.Console.OnNewLogMessage += HandleNewMessage;
-
-        if (server.State.State != ServerState.Offline && server.State.State != ServerState.Join2Start)
-        {
-            statsCancel = await server.GetStatsStream(async stats =>
-            {
-                try
-                {
-                    await websocketStream.SendPacket(stats);
-                }
-                catch (Exception e)
-                {
-                    Logger.Warn("An error occured while sending stats packet");
-                    Logger.Warn(e);
-
-                    await websocketStream.Close();
-                }
-            });
-        }
-
-        await websocketStream.WaitForClose();
-
-        server.State.OnTransitioned -= HandleStateChange;
-        server.Console.OnNewLogMessage -= HandleNewMessage;
-        
-        if(statsCancel != null)
-            statsCancel.Cancel();
-        
-        return Ok();
+            Logger.Warn("Closed:");
+            Logger.Warn(e);
+        }*/
     }
 
     [HttpPost("{id:int}/backups/{backupId:int}")]
