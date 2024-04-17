@@ -116,7 +116,7 @@ public static class ServerConfigurationExtensions
         
         // - User
         // Note: Some images might not work if we set a user here
-        //container.User = "0:0";
+        container.User = "0:0";
 
         // -- Mounts
         container.HostConfig.Mounts = new List<Mount>();
@@ -254,6 +254,7 @@ public static class ServerConfigurationExtensions
         // Copy variables as env vars
         foreach (var variable in configuration.Variables)
             result.Add(variable.Key, variable.Value);
+        
 
         return result;
     }
