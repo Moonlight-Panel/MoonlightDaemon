@@ -15,6 +15,20 @@ public static class ServerConfigurationExtensions
         var container = new CreateContainerParameters();
         
         ApplySharedConfiguration(container, configuration, configService);
+        
+        // -- Cap drops
+        container.HostConfig.CapDrop = new List<string>()
+        {
+            "setpcap", "mknod", "audit_write", "net_raw", "dac_override",
+            "fowner", "fsetid", "net_bind_service", "sys_chroot", "setfcap"
+        };
+
+        // -- More security options
+        container.HostConfig.ReadonlyRootfs = true;
+        container.HostConfig.SecurityOpt = new List<string>()
+        {
+            "no-new-privileges"
+        };
 
         // - Name
         var name = $"moonlight-runtime-{configuration.Id}";
@@ -166,13 +180,6 @@ public static class ServerConfigurationExtensions
         
         // - Host config
         container.HostConfig = new HostConfig();
-
-        // -- Cap drops
-        container.HostConfig.CapDrop = new List<string>()
-        {
-            "setpcap", "mknod", "audit_write", "net_raw", "dac_override",
-            "fowner", "fsetid", "net_bind_service", "sys_chroot", "setfcap"
-        };
 
         // -- CPU limits
         container.HostConfig.CPUQuota = configuration.Limits.Cpu * 1000;
