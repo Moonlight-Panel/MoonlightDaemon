@@ -104,16 +104,15 @@ public class WsServerConsole
             }
             catch (Exception e)
             {
+                if (StatsStreamCancellation != null && !StatsStreamCancellation.IsCancellationRequested)
+                    StatsStreamCancellation.Cancel();
+                
                 if (Server.State.State == ServerState.Offline || Server.State.State == ServerState.Join2Start ||
                     Server.State.State == ServerState.Installing)
                 {
                     // If an error occured and we are now offline, join2start or installing, we want to stop monitoring the stats,
                     // as the runtime container does no longer exist. We stop it with the cancellation token but NOT quit the websocket connection.
                     // The stats callback should start the monitoring again when the server starts
-
-                    if (StatsStreamCancellation != null)
-                        StatsStreamCancellation.Cancel();
-
                     return;
                 }
 
@@ -149,6 +148,7 @@ public class WsServerConsole
 
             // If the server starts from an offline state, the monitor for stats needs to be enabled, thats why we
             // check for this here and start the monitor again, but only if the monitor was never created (null check) or has been stopped (check for cancellation)
+            
             if (state == ServerState.Starting)
             {
                 if(StatsStreamCancellation != null && !StatsStreamCancellation.IsCancellationRequested)
@@ -164,6 +164,12 @@ public class WsServerConsole
                         "An error occured while reactivating stats monitoring. Stats are unavailable for this connection now");
                     Logger.Warn(e);
                 }
+            }
+
+            if (state == ServerState.Offline)
+            {
+                if (StatsStreamCancellation != null && !StatsStreamCancellation.IsCancellationRequested)
+                    StatsStreamCancellation.Cancel();
             }
         }
         catch (WebSocketException)
