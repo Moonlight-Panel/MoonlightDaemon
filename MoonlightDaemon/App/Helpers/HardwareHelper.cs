@@ -1,3 +1,4 @@
+using System.Globalization;
 using MoonCore.Attributes;
 using static MoonlightDaemon.App.Http.Resources.SystemStatus.HardwareInformationData;
 
@@ -39,20 +40,20 @@ public class HardwareHelper
         return result.ToArray();
     }
 
-    public  async Task<TimeSpan> GetUptime()
+    public async Task<TimeSpan> GetUptime()
     {
         var uptimeText = await File.ReadAllTextAsync("/proc/uptime");
         var values = uptimeText.Split(" ");
-        var seconds = double.Parse(values[0]);
+        var seconds = double.Parse(values[0], CultureInfo.InvariantCulture);
 
         return TimeSpan.FromSeconds(seconds);
     }
 
     public async Task<double[]> GetCpuUsages()
     {
-        string[] linesBefore = await File.ReadAllLinesAsync("/proc/stat");
+        var linesBefore = await File.ReadAllLinesAsync("/proc/stat");
         await Task.Delay(1000); // Wait for 1 second
-        string[] linesAfter = await File.ReadAllLinesAsync("/proc/stat");
+        var linesAfter = await File.ReadAllLinesAsync("/proc/stat");
 
         var cpuDataBefore = linesBefore
             .Where(line => line.StartsWith("cpu"))
@@ -66,19 +67,20 @@ public class HardwareHelper
                 .ToArray())
             .ToList();
 
-        int numCores = Environment.ProcessorCount;
-        double[] cpuUsagePerCore = new double[numCores];
+        var numCores = Environment.ProcessorCount;
+        var cpuUsagePerCore = new double[numCores];
 
         for (int i = 0; i < numCores; i++)
         {
-            long beforeIdle = cpuDataBefore[i][3];
-            long beforeTotal = cpuDataBefore[i].Sum();
-            long afterIdle = cpuDataAfter[i][3];
-            long afterTotal = cpuDataAfter[i].Sum();
+            var beforeIdle = cpuDataBefore[i][3];
+            var beforeTotal = cpuDataBefore[i].Sum();
+            var afterIdle = cpuDataAfter[i][3];
+            var afterTotal = cpuDataAfter[i].Sum();
 
             double idleDelta = afterIdle - beforeIdle;
             double totalDelta = afterTotal - beforeTotal;
-            double usage = 100.0 * (1.0 - idleDelta / totalDelta);
+            
+            var usage = 100.0 * (1.0 - idleDelta / totalDelta);
             cpuUsagePerCore[i] = usage;
         }
 

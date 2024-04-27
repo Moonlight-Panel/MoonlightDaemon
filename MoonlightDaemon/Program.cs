@@ -100,13 +100,13 @@ app.Services.StartBackgroundServices<Program>();
 // Add default parsers
 var parseService = app.Services.GetRequiredService<ParseService>();
 
-parseService.Register<FileParser>("file");
-parseService.Register<PropertiesParser>("properties");
+await parseService.Register<FileParser>("file");
+await parseService.Register<PropertiesParser>("properties");
 
 // Add default backup providers
 var backupService = app.Services.GetRequiredService<BackupService>();
 
-backupService.Register<FileBackupProvider>("file");
+await backupService.Register<FileBackupProvider>("file");
 
 // Run delayed tasks
 Task.Run(async () =>
