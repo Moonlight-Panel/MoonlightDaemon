@@ -205,7 +205,7 @@ public static class ServerConfigurationExtensions
 
         // -- Other limits
         container.HostConfig.BlkioWeight = 100;
-        container.HostConfig.PidsLimit = configuration.Limits.PidsLimit;
+        //container.HostConfig.PidsLimit = configuration.Limits.PidsLimit;
         container.HostConfig.OomKillDisable = !configuration.Limits.EnableOomKill;
         
         // -- DNS
