@@ -16,6 +16,13 @@ public class TokenAuthenticationMiddleware
 
     public async Task Invoke(HttpContext context)
     {
+        if (context.Request.Method == HttpMethods.Get && context.Request.Path.HasValue &&
+            context.Request.Path.Value.Contains("/backups/"))
+        {
+            await Next(context);
+            return;
+        }
+        
         if (!context.Request.Headers.ContainsKey("Authorization"))
         {
             context.Response.StatusCode = 400;
