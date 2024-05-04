@@ -1,3 +1,4 @@
+using System.IO.Enumeration;
 using Mono.Unix.Native;
 using MoonCore.Helpers;
 using MoonlightDaemon.App.Exceptions;
@@ -12,6 +13,41 @@ public class ServerFileSystem
     public ServerFileSystem(string rootPath)
     {
         RootPath = rootPath;
+    }
+
+    public Task<FileEntry> Stat(string path)
+    {
+        if (IsUnsafe(path))
+            throw new UnsafeFileAccessException();
+        
+        var fullPath = GetRealPath(path);
+
+        if (File.Exists(fullPath))
+        {
+            var fi = new FileInfo(fullPath);
+
+            return Task.FromResult(new FileEntry()
+            {
+                Name = fi.Name,
+                Size = fi.Length,
+                IsDirectory = false,
+                IsFile = true,
+                LastModifiedAt = fi.LastWriteTimeUtc
+            });
+        }
+        else
+        {
+            var di = new DirectoryInfo(fullPath);
+
+            return Task.FromResult(new FileEntry()
+            {
+                Name = di.Name,
+                Size = 0,
+                IsDirectory = true,
+                LastModifiedAt = di.LastWriteTimeUtc,
+                IsFile = false
+            });
+        }
     }
 
     public Task<FileEntry[]> List(string path)

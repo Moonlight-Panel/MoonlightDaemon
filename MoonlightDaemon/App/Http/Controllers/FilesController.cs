@@ -10,10 +10,12 @@ namespace MoonlightDaemon.App.Http.Controllers;
 public class FilesController : Controller
 {
     private readonly ServerService ServerService;
+    private readonly FileArchiveService FileArchiveService;
 
-    public FilesController(ServerService serverService)
+    public FilesController(ServerService serverService, FileArchiveService fileArchiveService)
     {
         ServerService = serverService;
+        FileArchiveService = fileArchiveService;
     }
 
     [HttpGet("{serverId}/list")]
@@ -91,7 +93,7 @@ public class FilesController : Controller
 
         return Ok();
     }
-    
+
     [HttpGet("{serverId}/readFile")]
     public async Task<ActionResult<string>> ReadFile(int serverId, [FromQuery] string path)
     {
@@ -148,7 +150,24 @@ public class FilesController : Controller
         await using var stream = file.OpenReadStream();
 
         await fileSystem.WriteFileStream(path, stream);
-        
+
+        return Ok();
+    }
+
+    [HttpPost("{serverId}/archive")]
+    public async Task<ActionResult> Archive(
+        int serverId,
+        [FromQuery] string path,
+        [FromBody] string[] files,
+        [FromQuery] string provider = "tar.gz")
+    {
+        var fileSystem = await GetFileSystem(serverId);
+
+        if (fileSystem == null)
+            return NotFound();
+
+        await FileArchiveService.Archive(fileSystem, provider, path, files);
+
         return Ok();
     }
 
