@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MoonCore.Helpers;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Http.Resources;
 using MoonlightDaemon.App.Services;
@@ -26,7 +27,27 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        return await fileSystem.List(path);
+        var result = new List<FileEntry>();
+
+        result.AddRange(fileSystem.ListFiles(path).Select(x => new FileEntry()
+        {
+            Size = x.Length,
+            IsDirectory = false,
+            IsFile = true,
+            LastModifiedAt = x.LastWriteTimeUtc,
+            Name = x.Name
+        }));
+        
+        result.AddRange(fileSystem.ListDirectories(path).Select(x => new FileEntry()
+        {
+            Size = 0,
+            IsDirectory = true,
+            IsFile = false,
+            LastModifiedAt = x.LastWriteTimeUtc,
+            Name = x.Name
+        }));
+        
+        return result.ToArray();
     }
 
     [HttpDelete("{serverId}/deleteFile")]
@@ -56,14 +77,23 @@ public class FilesController : Controller
     }
 
     [HttpPost("{serverId}/move")]
-    public async Task<ActionResult> Move(int serverId, [FromQuery] string from, [FromQuery] string to)
+    public async Task<ActionResult> Move(int serverId, [FromQuery] string from, [FromQuery] string to) // TODO: Add separate move functions for files and folders
     {
         var fileSystem = await GetFileSystem(serverId);
 
         if (fileSystem == null)
             return NotFound();
 
-        await fileSystem.Move(from, to);
+        try
+        {
+            fileSystem.Stat(from);
+            
+            await fileSystem.MoveFile(from, to);
+        }
+        catch (FileNotFoundException)
+        {
+            await fileSystem.MoveDirectory(from, to);
+        }
 
         return Ok();
     }
@@ -149,7 +179,7 @@ public class FilesController : Controller
         var file = Request.Form.Files.First();
         await using var stream = file.OpenReadStream();
 
-        await fileSystem.WriteFileStream(path, stream);
+        await fileSystem.WriteStreamToFile(path, stream);
 
         return Ok();
     }
@@ -166,12 +196,12 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        await FileArchiveService.Archive(fileSystem, provider, path, files);
+        //await FileArchiveService.Archive(fileSystem, provider, path, files);
 
         return Ok();
     }
 
-    private async Task<ServerFileSystem?> GetFileSystem(int serverId)
+    private async Task<ChrootFileSystem?> GetFileSystem(int serverId)
     {
         var server = await ServerService.GetById(serverId);
 

@@ -93,7 +93,7 @@ public class ServerService
             State = stateMachine,
             LockHandle = new SemaphoreSlim(1, 1),
             Console = new(),
-            FileSystem = new(configuration.GetRuntimeVolumePath())
+            FileSystem = new(configuration.GetRuntimeVolumePath()) // TODO: Ensure stuff like the virtual disk is mounted
         };
 
         server.Console.OnNewLogMessage += async message =>

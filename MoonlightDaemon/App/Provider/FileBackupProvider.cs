@@ -63,7 +63,7 @@ public class FileBackupProvider : IBackupProvider
         await UnarchiveTar(backupPath, volumePath);
     }
 
-    private async Task ArchiveServer(ServerFileSystem fileSystem, string pathToTar)
+    private async Task ArchiveServer(ChrootFileSystem fileSystem, string pathToTar)
     {
         await using var outStream = File.Create(pathToTar);
         await using var gzoStream = new GZipOutputStream(outStream);
@@ -74,43 +74,42 @@ public class FileBackupProvider : IBackupProvider
         await AddDirectoryToTarNew(tarArchive, fileSystem, "/");
     }
     
-    private async Task AddDirectoryToTarNew(TarArchive archive, ServerFileSystem fileSystem, string root)
+    private async Task AddDirectoryToTarNew(TarArchive archive, ChrootFileSystem fileSystem, string root)
     {
-        var items = await fileSystem.List(root);
+        Logger.Debug(root);
         
-        foreach (var item in items)
+        foreach (var file in fileSystem.ListFiles(root))
         {
-            if (item.IsFile)
-            {
-                var fullPath = fileSystem.GetRealPath(root + item.Name);
-                var fi = new FileInfo(fullPath);
+            var fi = fileSystem.Stat(root + file.Name);
 
-                if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint) && string.IsNullOrEmpty(fi.LinkTarget))
+            if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint) && string.IsNullOrEmpty(fi.LinkTarget))
+                continue; // => ignore
+
+            if (!string.IsNullOrEmpty(fi.LinkTarget))
+            {
+                if (fi.LinkTarget.Contains(".."))
                     continue; // => ignore
 
-                if (!string.IsNullOrEmpty(fi.LinkTarget))
-                {
-                    if (fi.LinkTarget.Contains(".."))
-                        continue; // => ignore
+                if (fi.LinkTarget.StartsWith("/") && !fi.LinkTarget.StartsWith("/home/container"))
+                    continue; // => ignore
 
-                    if (fi.LinkTarget.StartsWith("/") && !fi.LinkTarget.StartsWith("/home/container"))
-                        continue; // => ignore
+                var linkTarget = fi.ResolveLinkTarget(true);
 
-                    var linkTarget = fi.ResolveLinkTarget(true);
+                if (linkTarget == null)
+                    continue; // => ignore
 
-                    if (linkTarget == null)
-                        continue; // => ignore
-
-                    if (!linkTarget.FullName.StartsWith(fileSystem.GetRealPath("/")))
-                        continue; // ignore
-                }
-                
-                var entry = TarEntry.CreateEntryFromFile(fullPath);
-                entry.Name = root + item.Name;
-                archive.WriteEntry(entry, false);
+                if (!linkTarget.FullName.StartsWith(fi.FullName))
+                    continue; // ignore
             }
-            else
-                await AddDirectoryToTarNew(archive, fileSystem, root + item.Name + "/");
+                
+            var entry = TarEntry.CreateEntryFromFile(fi.FullName);
+            entry.Name = root + file.Name;
+            archive.WriteEntry(entry, false);
+        }
+
+        foreach (var directory in fileSystem.ListDirectories(root))
+        {
+            await AddDirectoryToTarNew(archive, fileSystem, root + directory.Name + "/");
         }
     }
 

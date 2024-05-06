@@ -1,3 +1,4 @@
+using MoonCore.Helpers;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models.Configuration;
 using MoonlightDaemon.App.Models.Enums;
@@ -11,5 +12,5 @@ public class Server
     public StateMachine<ServerState> State { get; set; }
     public SemaphoreSlim LockHandle { get; set; }
     public ServerConsole Console { get; set; }
-    public ServerFileSystem FileSystem { get; set; }
+    public ChrootFileSystem FileSystem { get; set; }
 }
