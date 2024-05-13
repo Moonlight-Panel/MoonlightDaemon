@@ -58,6 +58,12 @@ builder.WebHost.ConfigureMoonCoreHttp(
     httpConfig.UseSsl);
 
 //
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = ByteSizeValue.FromMegaBytes(httpConfig.UploadLimit).Bytes;
+});
+
+//
 Logger.Info("Starting MoonlightDaemon v2");
 
 // Configure kestrel
@@ -91,7 +97,7 @@ app.UseRouting();
 app.MapControllers();
 app.UseWebSockets();
 
-app.UseMiddleware<ExceptionHandlerMiddleware>();
+//app.UseMiddleware<ExceptionHandlerMiddleware>();
 app.UseMiddleware<TokenAuthenticationMiddleware>();
 
 // Auto start background services

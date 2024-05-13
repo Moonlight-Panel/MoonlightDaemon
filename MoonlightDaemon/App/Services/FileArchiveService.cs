@@ -19,14 +19,14 @@ public class FileArchiveService
         return Task.CompletedTask;
     }
 
-    public async Task Archive(ChrootFileSystem fileSystem, string archiverId, string destination, string[] files)
+    public async Task Archive(ServerFileSystem fileSystem, string archiverId, string destination, string[] files)
     {
         var archiver = GetById(archiverId);
 
         await archiver.Archive(fileSystem, destination, files);
     }
 
-    public async Task UnArchive(ChrootFileSystem fileSystem, string archiverId, string source, string destination)
+    public async Task UnArchive(ServerFileSystem fileSystem, string archiverId, string source, string destination)
     {
         var archiver = GetById(archiverId);
 

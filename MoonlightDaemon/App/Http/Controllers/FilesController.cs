@@ -29,21 +29,12 @@ public class FilesController : Controller
 
         var result = new List<FileEntry>();
 
-        result.AddRange(fileSystem.ListFiles(path).Select(x => new FileEntry()
+        result.AddRange(fileSystem.List(path).Select(x => new FileEntry()
         {
-            Size = x.Length,
-            IsDirectory = false,
-            IsFile = true,
-            LastModifiedAt = x.LastWriteTimeUtc,
-            Name = x.Name
-        }));
-        
-        result.AddRange(fileSystem.ListDirectories(path).Select(x => new FileEntry()
-        {
-            Size = 0,
-            IsDirectory = true,
-            IsFile = false,
-            LastModifiedAt = x.LastWriteTimeUtc,
+            Size = x.Size,
+            IsDirectory = x.IsDirectory,
+            IsFile = x.IsFile,
+            LastModifiedAt = x.LastChanged,
             Name = x.Name
         }));
         
@@ -58,7 +49,7 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        await fileSystem.DeleteFile(path);
+        fileSystem.Remove(path);
 
         return Ok();
     }
@@ -71,7 +62,7 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        await fileSystem.DeleteDirectory(path);
+        fileSystem.Remove(path);
 
         return Ok();
     }
@@ -84,16 +75,7 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        try
-        {
-            fileSystem.Stat(from);
-            
-            await fileSystem.MoveFile(from, to);
-        }
-        catch (FileNotFoundException)
-        {
-            await fileSystem.MoveDirectory(from, to);
-        }
+        fileSystem.Move(from, to);
 
         return Ok();
     }
@@ -106,7 +88,7 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        await fileSystem.CreateDirectory(path);
+        fileSystem.CreateDirectory(path);
 
         return Ok();
     }
@@ -119,7 +101,7 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        await fileSystem.CreateFile(path);
+        fileSystem.CreateFile(path);
 
         return Ok();
     }
@@ -132,7 +114,7 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        return await fileSystem.ReadFile(path);
+        return fileSystem.ReadFile(path);
     }
 
     [HttpPost("{serverId}/writeFile")]
@@ -146,7 +128,7 @@ public class FilesController : Controller
         using var sr = new StreamReader(Request.Body);
         var content = await sr.ReadToEndAsync();
 
-        await fileSystem.WriteFile(path, content);
+        fileSystem.WriteFile(path, content);
 
         return Ok();
     }
@@ -159,7 +141,7 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        return File(await fileSystem.ReadFileStream(path), "application/octet-stream");
+        return File(fileSystem.OpenFileReadStream(path), "application/octet-stream");
     }
 
     [HttpPost("{serverId}/writeFileStream")]
@@ -179,7 +161,7 @@ public class FilesController : Controller
         var file = Request.Form.Files.First();
         await using var stream = file.OpenReadStream();
 
-        await fileSystem.WriteStreamToFile(path, stream);
+        fileSystem.WriteStreamToFile(path, stream);
 
         return Ok();
     }
@@ -201,7 +183,7 @@ public class FilesController : Controller
         return Ok();
     }
 
-    private async Task<ChrootFileSystem?> GetFileSystem(int serverId)
+    private async Task<ServerFileSystem?> GetFileSystem(int serverId)
     {
         var server = await ServerService.GetById(serverId);
 

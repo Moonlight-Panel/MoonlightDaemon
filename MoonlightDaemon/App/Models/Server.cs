@@ -12,5 +12,5 @@ public class Server
     public StateMachine<ServerState> State { get; set; }
     public SemaphoreSlim LockHandle { get; set; }
     public ServerConsole Console { get; set; }
-    public ChrootFileSystem FileSystem { get; set; }
+    public ServerFileSystem FileSystem { get; set; }
 }

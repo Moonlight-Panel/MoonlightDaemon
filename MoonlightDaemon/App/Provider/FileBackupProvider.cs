@@ -16,7 +16,7 @@ public class FileBackupProvider : IBackupProvider
         //var volumePath = server.Configuration.GetRuntimeVolumePath();
         var backupPath = $"/var/lib/moonlight/backups/{backupId}.tar.gz";
 
-        await ArchiveServer(server.FileSystem, backupPath);
+        //await ArchiveServer(server.FileSystem, backupPath);
 
         return new Backup()
         {
@@ -60,9 +60,9 @@ public class FileBackupProvider : IBackupProvider
         foreach (var file in Directory.GetFiles(volumePath))
             File.Delete(file);
 
-        await UnarchiveTar(backupPath, volumePath);
+        //await UnarchiveTar(backupPath, volumePath);
     }
-
+/*
     private async Task ArchiveServer(ChrootFileSystem fileSystem, string pathToTar)
     {
         await using var outStream = File.Create(pathToTar);
@@ -76,8 +76,6 @@ public class FileBackupProvider : IBackupProvider
     
     private async Task AddDirectoryToTarNew(TarArchive archive, ChrootFileSystem fileSystem, string root)
     {
-        Logger.Debug(root);
-        
         foreach (var file in fileSystem.ListFiles(root))
         {
             var fi = fileSystem.Stat(root + file.Name);
@@ -120,5 +118,5 @@ public class FileBackupProvider : IBackupProvider
         using var tarArchive = TarArchive.CreateInputTarArchive(gzoStream, Encoding.UTF8);
         
         tarArchive.ExtractContents(dst, false);
-    }
+    }*/
 }
