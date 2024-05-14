@@ -1,8 +1,3 @@
-using System.Text;
-using ICSharpCode.SharpZipLib.GZip;
-using ICSharpCode.SharpZipLib.Tar;
-using MoonCore.Helpers;
-using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Abstractions;
@@ -54,66 +49,11 @@ public class FileBackupProvider : IBackupProvider
         var backupPath = $"/var/lib/moonlight/backups/{backupId}.tar.gz";
         
         var serverFs = server.FileSystem;
-        // TODO: Rm items here
+
+        foreach (var entry in serverFs.List("/"))
+            serverFs.Remove(entry.Name);
 
         await ArchiveHelper.ExtractFromTarFile(backupPath, serverFs, ".");
 
     }
-/*
-    private async Task ArchiveServer(ChrootFileSystem fileSystem, string pathToTar)
-    {
-        await using var outStream = File.Create(pathToTar);
-        await using var gzoStream = new GZipOutputStream(outStream);
-        using var tarArchive = TarArchive.CreateOutputTarArchive(gzoStream, Encoding.UTF8);
-
-        tarArchive.RootPath = "/";
-
-        await AddDirectoryToTarNew(tarArchive, fileSystem, "/");
-    }
-    
-    private async Task AddDirectoryToTarNew(TarArchive archive, ChrootFileSystem fileSystem, string root)
-    {
-        foreach (var file in fileSystem.ListFiles(root))
-        {
-            var fi = fileSystem.Stat(root + file.Name);
-
-            if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint) && string.IsNullOrEmpty(fi.LinkTarget))
-                continue; // => ignore
-
-            if (!string.IsNullOrEmpty(fi.LinkTarget))
-            {
-                if (fi.LinkTarget.Contains(".."))
-                    continue; // => ignore
-
-                if (fi.LinkTarget.StartsWith("/") && !fi.LinkTarget.StartsWith("/home/container"))
-                    continue; // => ignore
-
-                var linkTarget = fi.ResolveLinkTarget(true);
-
-                if (linkTarget == null)
-                    continue; // => ignore
-
-                if (!linkTarget.FullName.StartsWith(fi.FullName))
-                    continue; // ignore
-            }
-                
-            var entry = TarEntry.CreateEntryFromFile(fi.FullName);
-            entry.Name = root + file.Name;
-            archive.WriteEntry(entry, false);
-        }
-
-        foreach (var directory in fileSystem.ListDirectories(root))
-        {
-            await AddDirectoryToTarNew(archive, fileSystem, root + directory.Name + "/");
-        }
-    }
-
-    private async Task UnarchiveTar(string pathToTar, string dst)
-    {
-        await using var outStream = File.OpenRead(pathToTar);
-        await using var gzoStream = new GZipInputStream(outStream);
-        using var tarArchive = TarArchive.CreateInputTarArchive(gzoStream, Encoding.UTF8);
-        
-        tarArchive.ExtractContents(dst, false);
-    }*/
 }
