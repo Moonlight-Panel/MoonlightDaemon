@@ -11,6 +11,8 @@ public static class ServerVolumeExtensions
     
     public static async Task EnsureRuntimeVolume(this Server server, int uid, int gid)
     {
+        var wasMissing = !Directory.Exists(server.Configuration.GetRuntimeVolumePath());
+        
         var volumeHelper = server.ServiceProvider.GetRequiredService<VolumeHelper>();
 
         // TODO: Make uid and gid dynamic loaded by temp config
@@ -19,6 +21,12 @@ public static class ServerVolumeExtensions
         // Hook for virtual disks
         if (server.Configuration.Limits.UseVirtualDisk)
             await server.EnsureVirtualDisk();
+
+        if (wasMissing)
+        {
+            server.FileSystem.Dispose();
+            server.FileSystem = new(server.Configuration);
+        }
     }
 
     public static async Task EnsureInstallVolume(this Server server) => await EnsureInstallVolume(server, 0, 0);
