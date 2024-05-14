@@ -4,6 +4,7 @@ using Docker.DotNet;
 using MoonCore.Helpers;
 using MoonCore.Extensions;
 using MoonCore.Services;
+using MoonlightDaemon.App.Archivers;
 using MoonlightDaemon.App.Configuration;
 using MoonlightDaemon.App.Exceptions;
 using MoonlightDaemon.App.Http.Middleware;
@@ -113,6 +114,11 @@ await parseService.Register<PropertiesParser>("properties");
 var backupService = app.Services.GetRequiredService<BackupService>();
 
 await backupService.Register<FileBackupProvider>("file");
+
+// Add archive providers
+var fileArchiveService = app.Services.GetRequiredService<FileArchiveService>();
+
+await fileArchiveService.Register<TarGzArchiver>("tar.gz");
 
 // Run delayed tasks
 Task.Run(async () =>

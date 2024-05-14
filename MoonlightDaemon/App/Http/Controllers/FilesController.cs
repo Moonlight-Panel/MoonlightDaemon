@@ -178,7 +178,24 @@ public class FilesController : Controller
         if (fileSystem == null)
             return NotFound();
 
-        //await FileArchiveService.Archive(fileSystem, provider, path, files);
+        await FileArchiveService.Archive(fileSystem, provider, path, files);
+
+        return Ok();
+    }
+    
+    [HttpPost("{serverId}/extract")]
+    public async Task<ActionResult> Extract(
+        int serverId,
+        [FromQuery] string path,
+        [FromQuery] string destination,
+        [FromQuery] string provider = "tar.gz")
+    {
+        var fileSystem = await GetFileSystem(serverId);
+
+        if (fileSystem == null)
+            return NotFound();
+
+        await FileArchiveService.UnArchive(fileSystem, provider, path, destination);
 
         return Ok();
     }

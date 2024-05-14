@@ -102,7 +102,7 @@ public static class ArchiveHelper
     {
         await using var gzipStream = new GZipInputStream(fs);
         await using var tarStream = new TarInputStream(gzipStream, Encoding.UTF8);
-
+        
         while (true)
         {
             var entry = await tarStream.GetNextEntryAsync(CancellationToken.None);
