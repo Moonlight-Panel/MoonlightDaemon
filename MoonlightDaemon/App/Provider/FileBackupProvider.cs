@@ -16,7 +16,10 @@ public class FileBackupProvider : IBackupProvider
         //var volumePath = server.Configuration.GetRuntimeVolumePath();
         var backupPath = $"/var/lib/moonlight/backups/{backupId}.tar.gz";
 
-        //await ArchiveServer(server.FileSystem, backupPath);
+        var serverFs = server.FileSystem;
+        var items = serverFs.List("/").Select(x => x.Name).ToArray();
+
+        await ArchiveHelper.ArchiveToTarFile(backupPath, server.FileSystem, items);
 
         return new Backup()
         {
@@ -48,19 +51,13 @@ public class FileBackupProvider : IBackupProvider
 
     public async Task Restore(Server server, int backupId)
     {
-        var volumePath = server.Configuration.GetRuntimeVolumePath();
         var backupPath = $"/var/lib/moonlight/backups/{backupId}.tar.gz";
+        
+        var serverFs = server.FileSystem;
+        // TODO: Rm items here
 
-        if (!File.Exists(backupPath))
-            return;
+        await ArchiveHelper.ExtractFromTarFile(backupPath, serverFs, ".");
 
-        foreach (var directory in Directory.GetDirectories(volumePath))
-            Directory.Delete(directory, true);
-
-        foreach (var file in Directory.GetFiles(volumePath))
-            File.Delete(file);
-
-        //await UnarchiveTar(backupPath, volumePath);
     }
 /*
     private async Task ArchiveServer(ChrootFileSystem fileSystem, string pathToTar)

@@ -114,6 +114,26 @@ public class ServerFileSystem : IDisposable
         return fs;
     }
 
+    public UnixFsEntry? Stat(string path)
+    {
+        var error = FileSystem.Stat(path, out var stat);
+
+        if (error != null && error.Errno == Errno.ENOENT)
+            return null;
+        
+        error.ThrowIfError();
+
+        return new()
+        {
+            Name = Path.GetFileName(path),
+            IsDirectory = FileSystem.IsFileType(stat.st_mode, FilePermissions.S_IFDIR),
+            IsFile = FileSystem.IsFileType(stat.st_mode, FilePermissions.S_IFREG),
+            Size = stat.st_size,
+            CreatedAt = DateTimeOffset.FromUnixTimeSeconds(stat.st_ctime).UtcDateTime,
+            LastChanged = DateTimeOffset.FromUnixTimeSeconds(stat.st_mtime).UtcDateTime
+        };
+    }
+
     public void Dispose()
     {
         FileSystem.Dispose();
