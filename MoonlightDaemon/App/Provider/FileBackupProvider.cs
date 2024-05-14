@@ -1,8 +1,3 @@
-using System.Text;
-using ICSharpCode.SharpZipLib.GZip;
-using ICSharpCode.SharpZipLib.Tar;
-using MoonCore.Helpers;
-using MoonlightDaemon.App.Extensions;
 using MoonlightDaemon.App.Helpers;
 using MoonlightDaemon.App.Models;
 using MoonlightDaemon.App.Models.Abstractions;
@@ -16,7 +11,10 @@ public class FileBackupProvider : IBackupProvider
         //var volumePath = server.Configuration.GetRuntimeVolumePath();
         var backupPath = $"/var/lib/moonlight/backups/{backupId}.tar.gz";
 
-        await ArchiveServer(server.FileSystem, backupPath);
+        var serverFs = server.FileSystem;
+        var items = serverFs.List("/").Select(x => x.Name).ToArray();
+
+        await ArchiveHelper.ArchiveToTarFile(backupPath, server.FileSystem, items);
 
         return new Backup()
         {
@@ -48,78 +46,14 @@ public class FileBackupProvider : IBackupProvider
 
     public async Task Restore(Server server, int backupId)
     {
-        var volumePath = server.Configuration.GetRuntimeVolumePath();
         var backupPath = $"/var/lib/moonlight/backups/{backupId}.tar.gz";
-
-        if (!File.Exists(backupPath))
-            return;
-
-        foreach (var directory in Directory.GetDirectories(volumePath))
-            Directory.Delete(directory, true);
-
-        foreach (var file in Directory.GetFiles(volumePath))
-            File.Delete(file);
-
-        await UnarchiveTar(backupPath, volumePath);
-    }
-
-    private async Task ArchiveServer(ServerFileSystem fileSystem, string pathToTar)
-    {
-        await using var outStream = File.Create(pathToTar);
-        await using var gzoStream = new GZipOutputStream(outStream);
-        using var tarArchive = TarArchive.CreateOutputTarArchive(gzoStream, Encoding.UTF8);
-
-        tarArchive.RootPath = "/";
-
-        await AddDirectoryToTarNew(tarArchive, fileSystem, "/");
-    }
-    
-    private async Task AddDirectoryToTarNew(TarArchive archive, ServerFileSystem fileSystem, string root)
-    {
-        var items = await fileSystem.List(root);
         
-        foreach (var item in items)
-        {
-            if (item.IsFile)
-            {
-                var fullPath = fileSystem.GetRealPath(root + item.Name);
-                var fi = new FileInfo(fullPath);
+        var serverFs = server.FileSystem;
 
-                if (fi.Attributes.HasFlag(FileAttributes.ReparsePoint) && string.IsNullOrEmpty(fi.LinkTarget))
-                    continue; // => ignore
+        foreach (var entry in serverFs.List("/"))
+            serverFs.Remove(entry.Name);
 
-                if (!string.IsNullOrEmpty(fi.LinkTarget))
-                {
-                    if (fi.LinkTarget.Contains(".."))
-                        continue; // => ignore
+        await ArchiveHelper.ExtractFromTarFile(backupPath, serverFs, ".");
 
-                    if (fi.LinkTarget.StartsWith("/") && !fi.LinkTarget.StartsWith("/home/container"))
-                        continue; // => ignore
-
-                    var linkTarget = fi.ResolveLinkTarget(true);
-
-                    if (linkTarget == null)
-                        continue; // => ignore
-
-                    if (!linkTarget.FullName.StartsWith(fileSystem.GetRealPath("/")))
-                        continue; // ignore
-                }
-                
-                var entry = TarEntry.CreateEntryFromFile(fullPath);
-                entry.Name = root + item.Name;
-                archive.WriteEntry(entry, false);
-            }
-            else
-                await AddDirectoryToTarNew(archive, fileSystem, root + item.Name + "/");
-        }
-    }
-
-    private async Task UnarchiveTar(string pathToTar, string dst)
-    {
-        await using var outStream = File.OpenRead(pathToTar);
-        await using var gzoStream = new GZipInputStream(outStream);
-        using var tarArchive = TarArchive.CreateInputTarArchive(gzoStream, Encoding.UTF8);
-        
-        tarArchive.ExtractContents(dst, false);
     }
 }

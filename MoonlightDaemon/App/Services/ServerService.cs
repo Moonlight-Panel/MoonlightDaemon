@@ -86,6 +86,9 @@ public class ServerService
             // 
         };
 
+        // Ensure directory is there so the server fs abstraction is able to work.
+        // Virtual disks are mounted when a server starts atm so the server fs abstraction might fail
+
         var server = new Server()
         {
             Configuration = configuration,
@@ -93,7 +96,7 @@ public class ServerService
             State = stateMachine,
             LockHandle = new SemaphoreSlim(1, 1),
             Console = new(),
-            FileSystem = new(configuration.GetRuntimeVolumePath())
+            FileSystem = new(configuration) // TODO: Ensure stuff like the virtual disk is mounted
         };
 
         server.Console.OnNewLogMessage += async message =>
@@ -174,11 +177,6 @@ public class ServerService
 
         foreach (var server in servers)
             await ClearServer(server);
-
-        // Dont clear subscribers here as they are needed
-        // in a daemon restart and dont exist when its a clean start anyways
-        // lock (ConsoleSubscribers)
-        // ConsoleSubscribers.Clear();
     }
 
     public Task ClearServer(Server server) // Clear a specific server from the cache
