@@ -1,3 +1,4 @@
+using MoonCore.Exceptions;
 using MoonlightDaemon.App.Exceptions;
 
 namespace MoonlightDaemon.App.Http.Middleware;
@@ -17,7 +18,7 @@ public class ExceptionHandlerMiddleware
         {
             await Next(context);
         }
-        catch (UnsafeFileAccessException)
+        catch (UnsafeAccessException)
         {
             context.Response.StatusCode = 400;
             await context.Response.WriteAsync("Unsafe file access detected");
