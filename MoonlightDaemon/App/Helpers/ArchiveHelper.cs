@@ -1,7 +1,6 @@
 using System.Text;
 using ICSharpCode.SharpZipLib.GZip;
 using ICSharpCode.SharpZipLib.Tar;
-using MoonCore.Helpers;
 
 namespace MoonlightDaemon.App.Helpers;
 
@@ -64,19 +63,14 @@ public static class ArchiveHelper
     private static async Task ArchiveFile(ServerFileSystem fileSystem, TarOutputStream tarOutputStream, string parentDirectory, string file)
     {
         var path = (string.IsNullOrEmpty(parentDirectory) ? "" : parentDirectory + "/") + file;
-        
-        var entryStat = fileSystem.Stat(path);
-        
-        if(entryStat == null)
-            return;
+        var dataStream = fileSystem.OpenFileReadStream(path);
         
         // Meta 
         var entry = TarEntry.CreateTarEntry(path);
-        entry.Size = entryStat.Size;
+        entry.Size = dataStream.Length;
         await tarOutputStream.PutNextEntryAsync(entry, CancellationToken.None);
         
         // Data
-        var dataStream = fileSystem.OpenFileReadStream(path);
         await dataStream.CopyToAsync(tarOutputStream);
         dataStream.Close();
 
