@@ -140,21 +140,21 @@ public class ServerService
         {
             // When the required labels are missing, we ignore the container
             if (!container.Labels.ContainsKey("Software") || !container.Labels.ContainsKey("ServerId"))
-                return;
+                continue;
 
             // If its not a moonlight container, we ignore it
             if (container.Labels["Software"] != "Moonlight-Panel")
-                return;
+                continue;
 
             // If we are unable to parse the server id, we ignore the container
             if (!int.TryParse(container.Labels["ServerId"], out int serverId))
-                return;
+                continue;
 
             var server = await GetById(serverId);
 
             // If we are unable to find a server with the id, we ignore the event
             if (server == null)
-                return;
+                continue;
 
             // At this point we know the id and the meta data of the container
             // so we can start to restore the container
