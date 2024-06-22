@@ -12,6 +12,7 @@ using MoonlightDaemon.App.Models.Enums;
 using MoonlightDaemon.App.Parsers;
 using MoonlightDaemon.App.Provider;
 using MoonlightDaemon.App.Services;
+using Microsoft.AspNetCore.Http.Features;
 
 // Set en culture
 CultureInfo.CurrentCulture = CultureInfo.GetCultureInfoByIetfLanguageTag("en");
@@ -62,6 +63,12 @@ builder.WebHost.ConfigureMoonCoreHttp(
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.Limits.MaxRequestBodySize = ByteSizeValue.FromMegaBytes(httpConfig.UploadLimit).Bytes;
+});
+
+// Setup http upload limit in forms
+builder.Services.Configure<FormOptions>(x =>
+{
+    x.MultipartBodyLengthLimit = ByteSizeValue.FromMegaBytes(config.Http.UploadLimit).Bytes;
 });
 
 //
