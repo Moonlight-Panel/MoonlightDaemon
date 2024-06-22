@@ -68,7 +68,7 @@ builder.WebHost.ConfigureKestrel(options =>
 // Setup http upload limit in forms
 builder.Services.Configure<FormOptions>(x =>
 {
-    x.MultipartBodyLengthLimit = ByteSizeValue.FromMegaBytes(config.Http.UploadLimit).Bytes;
+    x.MultipartBodyLengthLimit = ByteSizeValue.FromMegaBytes(httpConfig.UploadLimit).Bytes;
 });
 
 //
